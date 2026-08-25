@@ -1,4 +1,4 @@
-# ELECTRIC CHAIR DUEL v3.4
+# ELECTRIC CHAIR DUEL v3.5
 
 スマートフォンのブラウザで遊ぶ、非公式ファンメイドの心理戦ゲームです。Node.js + WebSocketで、通信対戦とAI対戦に対応しています。
 
@@ -85,3 +85,13 @@ Render側の `Manual Deploy` は通常不要です。GitHubの最新コミット
 - Re-centers overlays against VisualViewport without double safe-area padding.
 
 - SAFEで取得済みのイスは通常盤面から完全に消え、罠公開時だけ安全席として一時表示されます。
+
+## v3.5
+- iPhone Safari の実 visual viewport をアプリ全体の高さとして使用。
+- プレイヤーカードを CSS Grid で再設計し、名前・得点・感電・勝数が互いに重ならない構造へ変更。
+- AI情報帯は2行固定、チャレンジ帯は1行省略で高さを上限化。
+- 盤面サイズを実際の残り表示領域から JavaScript で計測し、正方形サイズを直接指定。
+- 状態文、選択文、待機文は最大2行に制限し、長文でもボタンへ侵入しないよう修正。
+- 結果・確認・開始画面の全テキストを幅制約・最大行数付きに変更。
+- Toast を決定ボタンの上に被せない位置へ変更。
+- HOME / SOLO / CHALLENGE 含む主要文字に省略・最大幅・可変文字サイズを追加。
