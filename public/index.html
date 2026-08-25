@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#090a0b" />
+  <meta name="theme-color" content="#080909" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>ELECTRIC CHAIR DUEL</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <div class="noise"></div>
+  <div class="scanlines"></div>
   <main id="app" class="app-shell">
     <section id="lobby" class="screen active">
       <div class="brand-lockup">
@@ -26,6 +28,7 @@
           <input id="codeInput" inputmode="numeric" maxlength="6" placeholder="6桁ルームID" />
           <button id="joinBtn" class="btn">参加</button>
         </div>
+        <div id="inviteHint" class="invite-hint hidden">招待リンクからルームIDを読み込みました</div>
         <button id="resumeBtn" class="btn ghost hidden">前の対戦に再接続</button>
       </div>
       <p class="footnote">非公式ファンメイド。番組ロゴ・映像・音源は使用していません。</p>
@@ -34,9 +37,15 @@
     <section id="game" class="screen">
       <header class="topbar">
         <button id="leaveBtn" class="icon-btn" aria-label="退出">×</button>
-        <div class="room-badge">ROOM <b id="roomCode">------</b></div>
-        <button id="copyBtn" class="icon-btn" aria-label="ルームIDをコピー">⧉</button>
+        <div class="room-badge"><span class="live-dot"></span> ROOM <b id="roomCode">------</b></div>
+        <button id="shareBtn" class="icon-btn" aria-label="招待リンクを共有">↗</button>
       </header>
+
+      <div id="connectionBar" class="connection-bar connecting">
+        <span class="connection-dot"></span>
+        <b id="connectionText">CONNECTING</b>
+        <span id="opponentConnection"></span>
+      </div>
 
       <section class="scoreboard">
         <article class="player-card" id="p0card">
@@ -44,6 +53,7 @@
           <strong id="p0name">---</strong>
           <div><span id="p0score">0</span><em>PT</em></div>
           <p id="p0shock">⚡ 0 / 3</p>
+          <i id="p0wins">0 WIN</i>
         </article>
         <div class="vs">VS</div>
         <article class="player-card" id="p1card">
@@ -51,16 +61,21 @@
           <strong id="p1name">---</strong>
           <div><span id="p1score">0</span><em>PT</em></div>
           <p id="p1shock">⚡ 0 / 3</p>
+          <i id="p1wins">0 WIN</i>
         </article>
       </section>
 
-      <section class="status-panel">
-        <div class="turn-label">TURN <span id="turnNo">1</span></div>
-        <h2 id="statusTitle">対戦相手を待っています</h2>
-        <p id="statusSub">ルームIDを相手に伝えてください</p>
+      <section class="arena-wrap">
+        <div class="arena" id="chairGrid" aria-label="イス選択">
+          <div class="arena-rings"></div>
+          <div class="arena-center">
+            <div class="turn-label">GAME <span id="gameNo">1</span> / TURN <span id="turnNo">1</span></div>
+            <h2 id="statusTitle">対戦相手を待っています</h2>
+            <p id="statusSub">ルームIDを相手に伝えてください</p>
+            <div id="thinkingDots" class="thinking hidden"><span></span><span></span><span></span></div>
+          </div>
+        </div>
       </section>
-
-      <section class="chair-grid" id="chairGrid" aria-label="イス選択"></section>
 
       <section class="action-zone">
         <div id="selectionText">イスを選択してください</div>
@@ -73,12 +88,32 @@
     </section>
   </main>
 
-  <div id="resultOverlay" class="overlay hidden" role="dialog" aria-live="assertive">
+  <div id="confirmOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="confirm-card">
+      <small id="confirmKicker">CONFIRM</small>
+      <div id="confirmSeat" class="confirm-seat">12</div>
+      <h2 id="confirmTitle">このイスで決定？</h2>
+      <p id="confirmDetail">決定後は変更できません</p>
+      <div class="confirm-actions">
+        <button id="cancelChoiceBtn" class="btn ghost">戻る</button>
+        <button id="finalChoiceBtn" class="btn danger">決定</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultOverlay" class="overlay result-overlay hidden" role="dialog" aria-live="assertive">
+    <div class="flash-layer"></div>
     <div class="electric-burst"></div>
     <div class="result-card">
       <small id="resultKicker">RESULT</small>
+      <div id="resultSeat" class="result-seat">12</div>
       <h2 id="resultTitle">SAFE</h2>
       <p id="resultDetail"></p>
+      <div id="resultScore" class="result-score"></div>
+      <div id="trapReveal" class="trap-reveal hidden" aria-label="電気イスの位置">
+        <div class="trap-reveal-label">仕掛けられていた電気イス</div>
+        <div id="trapRevealRing" class="trap-reveal-ring"></div>
+      </div>
     </div>
   </div>
 
@@ -87,7 +122,9 @@
       <small>GAME OVER</small>
       <h2 id="winnerTitle">WINNER</h2>
       <p id="winnerDetail"></p>
-      <button id="restartBtn" class="btn primary">再戦する</button>
+      <div id="seriesScore" class="series-score"></div>
+      <button id="restartBtn" class="btn primary">再戦を希望する</button>
+      <div id="rematchStatus" class="rematch-status"></div>
       <button id="backBtn" class="btn ghost">ロビーへ戻る</button>
     </div>
   </div>
