@@ -34,7 +34,7 @@ function restoreRooms(){try{if(!fs.existsSync(SNAPSHOT_FILE))return;const data=J
 
 const server=http.createServer((req,res)=>{
   const urlPath=decodeURIComponent((req.url||'/').split('?')[0]);
-  if(urlPath==='/health'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({ok:true,rooms:rooms.size,version:'3.3.0',ts:Date.now()}))}
+  if(urlPath==='/health'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({ok:true,rooms:rooms.size,version:'3.4.0',ts:Date.now()}))}
   const requested=urlPath==='/'?'/index.html':urlPath;
   const resolved=path.resolve(PUBLIC_DIR,'.'+requested),root=path.resolve(PUBLIC_DIR)+path.sep;
   if(resolved!==path.resolve(PUBLIC_DIR,'index.html')&&!resolved.startsWith(root)){res.writeHead(403);return res.end('Forbidden')}
@@ -71,14 +71,14 @@ function applySeatChoice(room,idx,seat){const shocked=seat===room.trapSeat,sitte
 function scheduleAI(room){if(room.mode!=='ai'||room.phase==='game_over')return;const delay=room.aiDifficulty==='hard'?650:room.aiDifficulty==='normal'?900:1150;if(room.phase==='set_trap'&&room.setterIndex===1)setTimeout(()=>{if(rooms.get(room.code)!==room||room.phase!=='set_trap'||room.setterIndex!==1)return;const seat=aiTrapChoice(room);room.trapSeat=seat;room.history.traps[1].push(seat);room.phase='choose_seat';room.lastResult=null;broadcastState(room);scheduleAI(room)},delay+crypto.randomInt(150,650));if(room.phase==='choose_seat'&&room.sitterIndex===1)setTimeout(()=>{if(rooms.get(room.code)!==room||room.phase!=='choose_seat'||room.sitterIndex!==1)return;applySeatChoice(room,1,aiSeatChoice(room))},delay+crypto.randomInt(250,900))}
 
 wss.on('connection',ws=>{
-  send(ws,{type:'hello',serverTime:Date.now(),version:'3.3.0'});
+  send(ws,{type:'hello',serverTime:Date.now(),version:'3.4.0'});
   ws.on('message',raw=>{let msg;try{msg=JSON.parse(raw.toString())}catch{return fail(ws,'不正なデータです')}try{
     if(msg.type==='ping'){send(ws,{type:'pong',ts:Date.now()});return}
     if(msg.type==='create_room'){const{room,player,index}=newRoom(msg.name,'human');attach(ws,room,player,index);return}
     if(msg.type==='create_ai_room'){const profile=AI_PROFILES[msg.aiId]||AI_PROFILES.rei,difficulty=DIFFICULTIES.has(msg.difficulty)?msg.difficulty:'normal',challengeId=Object.hasOwn(CHALLENGE_RULES,msg.challengeId)?msg.challengeId:null;const{room,player,index}=newRoom(msg.name,'ai',challengeId);room.aiProfile=profile.id;room.aiDifficulty=difficulty;room.players[1]=newPlayer(profile.name,{isAI:true,connected:true});attach(ws,room,player,index);startGame(room);return}
     if(msg.type==='join_room'){const code=String(msg.code||'').replace(/\D/g,'').slice(0,6),room=rooms.get(code);if(!room)return fail(ws,'ルームが見つかりません');if(room.mode==='ai')return fail(ws,'このルームはAI対戦です');if(room.players[1])return fail(ws,'このルームは満員です');const player=newPlayer(msg.name);room.players[1]=player;attach(ws,room,player,1);startGame(room);return}
     if(msg.type==='resume'){const room=rooms.get(String(msg.code||''));if(!room)return fail(ws,'再接続するルームがありません');const found=findByToken(room,String(msg.token||''));if(!found)return fail(ws,'再接続情報が一致しません');attach(ws,room,found.player,found.index);return}
-    const s=ws.session;if(!s)return fail(ws,'先にルームへ参加してください');const room=rooms.get(s.roomCode);if(!room)return fail(ws,'ルームが終了しています');const found=findByToken(room,s.playerToken);if(!found)return fail(ws,'セッションが無効です');const idx=found.index;
+    const s=ws.session;if(!s){send(ws,{type:'session_required'});return}const room=rooms.get(s.roomCode);if(!room)return fail(ws,'ルームが終了しています');const found=findByToken(room,s.playerToken);if(!found)return fail(ws,'セッションが無効です');const idx=found.index;
     if(msg.type==='set_trap'){if(room.phase!=='set_trap'||idx!==room.setterIndex)return fail(ws,'今は電気イスを設定できません');const seat=Number(msg.seat);if(!room.remainingSeats.includes(seat))return fail(ws,'そのイスは選べません');room.trapSeat=seat;room.history.traps[idx].push(seat);room.phase='choose_seat';room.lastResult=null;broadcastState(room);scheduleAI(room);return}
     if(msg.type==='choose_seat'){if(room.phase!=='choose_seat'||idx!==room.sitterIndex)return fail(ws,'今は着席できません');const seat=Number(msg.seat);if(!room.remainingSeats.includes(seat))return fail(ws,'そのイスは選べません');applySeatChoice(room,idx,seat);return}
     if(msg.type==='rematch_vote'){if(room.phase!=='game_over')return fail(ws,'ゲーム終了後に使えます');if(room.mode==='ai'){room.rematchVotes=[true,true];startGame(room);return}room.rematchVotes[idx]=true;if(room.rematchVotes[0]&&room.rematchVotes[1])startGame(room);else broadcastState(room);return}
@@ -88,4 +88,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>{const now=Date.now();for(const[code,room]of rooms){if(room.mode==='human'&&!['waiting','game_over'].includes(room.phase)){room.players.forEach((p,idx)=>{if(p&&!p.isAI&&!p.connected&&p.disconnectedAt&&now-p.disconnectedAt>RECONNECT_GRACE_MS&&room.phase!=='game_over'){const opp=room.players[1-idx];if(opp)endGame(room,1-idx,'disconnect_timeout')}})}if(now-room.updatedAt>ROOM_TTL_MS){rooms.delete(code);persistRooms()}}},5000);
 restoreRooms();for(const room of rooms.values())if(room.phase==='result')setTimeout(()=>{if(room.phase!=='result')return;const pending=room.pendingEnd;room.pendingEnd=null;if(pending)endGame(room,pending.winnerIndex,pending.reason);else nextTurn(room)},RESULT_DELAY_MS);
-server.listen(PORT,'0.0.0.0',()=>console.log(`Electric Chair Duel v3.3 listening on http://localhost:${PORT}`));
+server.listen(PORT,'0.0.0.0',()=>console.log(`Electric Chair Duel v3.4 listening on http://localhost:${PORT}`));
