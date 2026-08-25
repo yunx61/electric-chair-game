@@ -6,7 +6,7 @@ const E={
  goOnline:$('#goOnlineBtn'),goSolo:$('#goSoloBtn'),goChallenge:$('#goChallengeBtn'),rules:$('#rulesBtn'),achievements:$('#achievementsBtn'),history:$('#historyBtn'),sound:$('#soundBtn'),achievementCount:$('#achievementCount'),soundState:$('#soundState'),
  startAi:$('#startAiBtn'),aiRoster:$('#aiRoster'),challengeGrid:$('#challengeGrid'),roomCode:$('#roomCode'),roomLabel:$('#roomLabel'),share:$('#shareBtn'),leave:$('#leaveBtn'),chairGrid:$('#chairGrid'),confirm:$('#confirmBtn'),selection:$('#selectionText'),statusTitle:$('#statusTitle'),statusSub:$('#statusSub'),thinking:$('#thinkingDots'),turnNo:$('#turnNo'),gameNo:$('#gameNo'),connectionBar:$('#connectionBar'),connectionText:$('#connectionText'),opponentConnection:$('#opponentConnection'),
  confirmOverlay:$('#confirmOverlay'),confirmSeat:$('#confirmSeat'),confirmTitle:$('#confirmTitle'),confirmDetail:$('#confirmDetail'),finalChoice:$('#finalChoiceBtn'),cancelChoice:$('#cancelChoiceBtn'),
- resultOverlay:$('#resultOverlay'),resultKicker:$('#resultKicker'),resultSeat:$('#resultSeat'),resultTitle:$('#resultTitle'),resultDetail:$('#resultDetail'),resultScore:$('#resultScore'),trapReveal:$('#trapReveal'),trapRevealRing:$('#trapRevealRing'),
+ gameContext:$('#gameContext'),resultOverlay:$('#resultOverlay'),resultKicker:$('#resultKicker'),resultSeat:$('#resultSeat'),resultTitle:$('#resultTitle'),resultDetail:$('#resultDetail'),resultScore:$('#resultScore'),trapReveal:$('#trapReveal'),trapRevealRing:$('#trapRevealRing'),
  gameOver:$('#gameOverOverlay'),winnerTitle:$('#winnerTitle'),winnerDetail:$('#winnerDetail'),seriesScore:$('#seriesScore'),challengeResult:$('#challengeResult'),restart:$('#restartBtn'),rematchStatus:$('#rematchStatus'),back:$('#backBtn'),toast:$('#toast'),
  rulesOverlay:$('#rulesOverlay'),achievementsOverlay:$('#achievementsOverlay'),historyOverlay:$('#historyOverlay'),soundOverlay:$('#soundOverlay'),achievementList:$('#achievementList'),historyList:$('#historyList'),bgmToggle:$('#bgmToggle'),seToggle:$('#seToggle'),
  startOverlay:$('#startOverlay'),startMode:$('#startMode'),startP0:$('#startP0'),startP1:$('#startP1'),startP0Img:$('#startP0Img'),startP1Img:$('#startP1Img'),aiBanner:$('#aiBanner'),aiAvatar:$('#aiAvatar'),aiStyle:$('#aiStyle'),aiName:$('#aiName'),aiQuote:$('#aiQuote'),challengeBanner:$('#challengeBanner')
@@ -37,7 +37,7 @@ const defaultProgress=()=>({soloWins:0,onlineWins:0,totalWins:0,streak:0,bestStr
 let progress=loadJSON('ec_progress',defaultProgress());
 let ws,state=null,selectedSeat=null,reconnectTimer=null,heartbeatTimer=null,lastResultKey=null,lastGameOverKey=null,audioCtx=null,ambientNodes=null,resultTimers=[],startTimer=null;
 let selectedAi='rei',difficulty='normal',currentChallenge=null,revealTrapSeat=null,revealSafeSeat=null,matchFlags={safe12:false};
-function syncVisualViewport(){const vv=window.visualViewport;const h=vv?.height||window.innerHeight;const o=vv?.offsetTop||0;document.documentElement.style.setProperty('--vvh',`${Math.round(h)}px`);document.documentElement.style.setProperty('--vvo',`${Math.round(o)}px`)}
+function syncVisualViewport(){const vv=window.visualViewport;const h=Math.round(vv?.height||window.innerHeight);const o=Math.round(vv?.offsetTop||0);document.documentElement.style.setProperty('--vvh',`${h}px`);document.documentElement.style.setProperty('--vvo',`${o}px`)}
 syncVisualViewport();window.addEventListener('resize',syncVisualViewport);window.visualViewport?.addEventListener('resize',syncVisualViewport);window.visualViewport?.addEventListener('scroll',syncVisualViewport);
 let bgmEnabled=localStorage.getItem('ec_bgm')!=='off',seEnabled=localStorage.getItem('ec_se')!=='off';
 
@@ -73,12 +73,12 @@ function setConnection(kind){E.connectionBar.className=`connection-bar ${kind}`;
 function startHeartbeat(){clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>send({type:'ping'}),20000)}
 function connect(onOpen){
  if(ws&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(ws.readyState)){if(ws.readyState===WebSocket.OPEN)onOpen?.();else ws.addEventListener('open',()=>onOpen?.(),{once:true});return}
- setConnection(state?'reconnecting':'connecting');ws=new WebSocket(wsUrl());
+ setConnection(state?'reconnecting':'connecting');sessionReady=false;ws=new WebSocket(wsUrl());
  ws.addEventListener('open',()=>{clearTimeout(reconnectTimer);setConnection('connected');startHeartbeat();onOpen?.()});
- ws.addEventListener('message',onMessage);ws.addEventListener('close',()=>{clearInterval(heartbeatTimer);setConnection('offline');if(state&&state.phase!=='game_over'){setConnection('reconnecting');showToast('通信が切れました。再接続中…');reconnectTimer=setTimeout(resumeSession,1200)}});ws.addEventListener('error',()=>setConnection('offline'));
+ ws.addEventListener('message',onMessage);ws.addEventListener('close',()=>{sessionReady=false;clearInterval(heartbeatTimer);setConnection('offline');if(state&&state.phase!=='game_over'){setConnection('reconnecting');showToast('通信が切れました。再接続中…');reconnectTimer=setTimeout(resumeSession,1200)}});ws.addEventListener('error',()=>setConnection('offline'));
 }
 function send(payload){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(payload))}
-function onMessage(e){let msg;try{msg=JSON.parse(e.data)}catch{return}if(msg.type==='session'){localStorage.setItem('ec_session',JSON.stringify({code:msg.roomCode,token:msg.playerToken}));refreshResumeButton()}if(msg.type==='state'){const prev=state;state=msg.state;selectedSeat=null;E.confirmOverlay.classList.add('hidden');showGame();render(prev)}if(msg.type==='error')showToast(msg.message);if(msg.type==='left')backToLobby()}
+function onMessage(e){let msg;try{msg=JSON.parse(e.data)}catch{return}if(msg.type==='session'){sessionReady=true;localStorage.setItem('ec_session',JSON.stringify({code:msg.roomCode,token:msg.playerToken}));refreshResumeButton()}if(msg.type==='state'){const prev=state;state=msg.state;selectedSeat=null;E.confirmOverlay.classList.add('hidden');showGame();render(prev)}if(msg.type==='error')showToast(msg.message);if(msg.type==='session_required'){sessionReady=false;resumeSession()}if(msg.type==='left')backToLobby()}
 function getSession(){return loadJSON('ec_session',null)}function refreshResumeButton(){E.resume.classList.toggle('hidden',!getSession())}
 function resumeSession(){const s=getSession();if(!s)return;connect(()=>send({type:'resume',code:s.code,token:s.token}))}
 function createRoom(){currentChallenge=null;unlockAudio();connect(()=>send({type:'create_room',name:cleanAndSaveName(E.name)}))}
@@ -86,13 +86,13 @@ function joinRoom(){currentChallenge=null;unlockAudio();const code=E.code.value.
 function createAiRoom(){currentChallenge=null;if(!isUnlocked(aiById(selectedAi)))return showToast('そのAIは未解放です');unlockAudio();connect(()=>send({type:'create_ai_room',name:cleanAndSaveName(E.soloName),aiId:selectedAi,difficulty,challengeId:null}))}
 function startChallenge(id){const c=CHALLENGES.find(x=>x.id===id);if(!c)return;currentChallenge=c;selectedAi=c.ai;difficulty=c.difficulty;unlockAudio();const name=cleanAndSaveName(E.soloName);connect(()=>send({type:'create_ai_room',name,aiId:c.ai,difficulty:c.difficulty,challengeId:c.id}))}
 function showGame(){E.lobby.classList.remove('active');E.game.classList.add('active');startAmbient()}
-function backToLobby(){stopAmbient();state=null;selectedSeat=null;lastResultKey=null;lastGameOverKey=null;currentChallenge=null;resultTimers.forEach(clearTimeout);resultTimers=[];E.game.classList.remove('active');E.lobby.classList.add('active');E.resultOverlay.classList.add('hidden');E.gameOver.classList.add('hidden');E.confirmOverlay.classList.add('hidden');localStorage.removeItem('ec_session');refreshResumeButton();history.replaceState({},'',location.pathname);switchTab('home');renderProgressUI();renderAiRoster();renderChallenges()}
+function backToLobby(){stopAmbient();sessionReady=false;state=null;selectedSeat=null;lastResultKey=null;lastGameOverKey=null;currentChallenge=null;resultTimers.forEach(clearTimeout);resultTimers=[];E.game.classList.remove('active');E.lobby.classList.add('active');E.resultOverlay.classList.add('hidden');E.gameOver.classList.add('hidden');E.confirmOverlay.classList.add('hidden');localStorage.removeItem('ec_session');refreshResumeButton();history.replaceState({},'',location.pathname);switchTab('home');renderProgressUI();renderAiRoster();renderChallenges()}
 
 function render(previous){
  if(!state)return;E.roomCode.textContent=state.mode==='ai'?(state.ai?.difficulty||'AI').toUpperCase():state.code;E.roomLabel.textContent=state.mode==='ai'?'SOLO':'ROOM';E.share.classList.toggle('hidden',state.mode==='ai');E.turnNo.textContent=state.turnNumber||'-';E.gameNo.textContent=state.gameNumber||'-';
  if(state.gameNumber>0&&(!previous||previous.gameNumber!==state.gameNumber)){matchFlags={safe12:false};showStartIntro()}
  if(state.phase!=='result'){revealTrapSeat=null;revealSafeSeat=null}
- renderPlayers(previous);renderAiBanner();renderChallengeBanner();renderArena();renderStatus();renderConnection();
+ renderPlayers(previous);renderAiBanner();renderChallengeBanner();renderGameContext();renderArena();renderStatus();renderConnection();
  if(state.phase!=='result'){E.resultOverlay.classList.add('hidden');resultTimers.forEach(clearTimeout);resultTimers=[]}
  if(state.lastResult&&state.phase==='result'){const k=`${state.gameNumber}:${state.turnNumber}:${state.lastResult.playerIndex}:${state.lastResult.seat}`;if(k!==lastResultKey){lastResultKey=k;showResult(state.lastResult)}}
  if(state.phase==='game_over')renderGameOver();else E.gameOver.classList.add('hidden');
@@ -103,10 +103,15 @@ function renderAiBanner(){if(state.mode!=='ai'||!state.ai){E.aiBanner.classList.
 function aiQuote(p){const idx=(state.turnNumber+(state.players[0]?.score||0)+(state.players[1]?.score||0))%p.quotes.length;let q=p.quotes[idx];if(state.phase==='choose_seat'&&state.sitterIndex===1)q='……ここだ。';if(state.phase==='set_trap'&&state.setterIndex===1)q='仕掛ける場所は決めた。';return q}
 function renderChallengeBanner(){const id=state.challengeId||currentChallenge?.id;if(!id){E.challengeBanner.classList.add('hidden');return}const c=CHALLENGES.find(x=>x.id===id);E.challengeBanner.classList.remove('hidden');E.challengeBanner.textContent=`CHALLENGE：${c?.title||id} / ${challengeLiveText(id)}`}
 function challengeLiveText(id){const me=state.players[state.you];if(id==='no_shock')return `感電 ${me?.shocks||0}回`;if(id==='six_turns')return `TURN ${state.turnNumber} / 6`;if(id==='high_risk')return '7〜12番・30PT・感電2回';if(id==='sudden')return '25PT・感電1回で敗北';return ''}
+
+function renderGameContext(){
+ const visibleAi=!E.aiBanner.classList.contains('hidden'),visibleChallenge=!E.challengeBanner.classList.contains('hidden');
+ E.gameContext.classList.toggle('hidden',!(visibleAi||visibleChallenge));
+}
 function renderConnection(){if(state.mode==='ai'){E.opponentConnection.textContent=' / AI';return}const opp=state.players[1-state.you];E.opponentConnection.textContent=opp?(opp.connected?' / OPPONENT ONLINE':' / OPPONENT OFFLINE'):' / WAITING'}
 function renderArena(){
  E.chairGrid.querySelectorAll('.chair-slot').forEach(x=>x.remove());
- for(let n=1;n<=12;n++){const b=document.createElement('button');const remaining=state.remainingSeats.includes(n);const theta=-90+(n%12)*30;const rad=theta*Math.PI/180;const radiusPct=41;const x=50+radiusPct*Math.cos(rad),y=50+radiusPct*Math.sin(rad);const rot=theta+90;b.className=`chair-slot ${remaining?'':'used'} ${selectedSeat===n?'selected':''} ${revealTrapSeat===n?'main-trap-hot':''} ${revealSafeSeat===n?'main-seat-safe':''}`;b.style.left=`${x}%`;b.style.top=`${y}%`;b.style.setProperty('--rot',`${rot}deg`);b.style.setProperty('--counter-rot',`${-rot}deg`);b.disabled=!remaining||!(state.canSetTrap||state.canChooseSeat);b.setAttribute('aria-label',`${n}番のイス`);b.innerHTML=`<span class="chair"><i class="chair-back"></i><i class="chair-seat"></i><b class="num">${n}</b></span>`;b.onclick=()=>selectSeat(n);E.chairGrid.appendChild(b)}
+ for(let n=1;n<=12;n++){const b=document.createElement('button');const remaining=state.remainingSeats.includes(n);const theta=-90+(n%12)*30;const rad=theta*Math.PI/180;const radiusPct=41;const x=50+radiusPct*Math.cos(rad),y=50+radiusPct*Math.sin(rad);const rot=theta+90;b.className=`chair-slot ${remaining?'':(revealSafeSeat===n?'used-reveal':'removed')} ${selectedSeat===n?'selected':''} ${revealTrapSeat===n?'main-trap-hot':''} ${revealSafeSeat===n?'main-seat-safe':''}`;b.style.left=`${x}%`;b.style.top=`${y}%`;b.style.setProperty('--rot',`${rot}deg`);b.style.setProperty('--counter-rot',`${-rot}deg`);b.disabled=!remaining||!(state.canSetTrap||state.canChooseSeat);b.setAttribute('aria-label',`${n}番のイス`);b.innerHTML=`<span class="chair"><i class="chair-back"></i><i class="chair-seat"></i><b class="num">${n}</b></span>`;b.onclick=()=>selectSeat(n);E.chairGrid.appendChild(b)}
 }
 function renderStatus(){
  const me=state.you,waiting=state.mode==='human'&&!state.players[1];E.thinking.classList.add('hidden');
@@ -114,11 +119,11 @@ function renderStatus(){
  if(state.phase==='set_trap'){if(state.setterIndex===me){E.statusTitle.textContent='電気イスを仕掛ける';E.statusSub.textContent='相手に座らせたい1脚を選択';E.selection.textContent=selectedSeat?`${selectedSeat}番に電気を仕掛ける`:'仕掛けるイスを選択'}else{E.statusTitle.textContent=state.mode==='ai'?'AIが仕掛けています':'相手が仕掛けています';E.statusSub.textContent='位置情報はあなたには送信されません';E.thinking.classList.remove('hidden');E.selection.textContent='相手の決定を待っています…'}}
  else if(state.phase==='choose_seat'){if(state.sitterIndex===me){E.statusTitle.textContent='座るイスを選ぶ';E.statusSub.textContent='電気イスを読み切れ';E.selection.textContent=selectedSeat?`${selectedSeat}番に着席する`:'着席するイスを選択'}else{E.statusTitle.textContent=state.mode==='ai'?'AIが着席を考えています':'相手が着席を考えています';E.statusSub.textContent='選択結果を待っています';E.thinking.classList.remove('hidden');E.selection.textContent='相手の選択を待っています…'}}
  else if(state.phase==='result'){E.statusTitle.textContent='RESULT';E.statusSub.textContent='判定中';E.selection.textContent='結果演出中…'}else if(state.phase==='game_over'){E.statusTitle.textContent='GAME OVER';E.statusSub.textContent='勝敗決定';E.selection.textContent='対戦終了'}
- E.confirm.disabled=!(selectedSeat&&(state.canSetTrap||state.canChooseSeat));
+ E.confirm.disabled=!sessionReady||!(selectedSeat&&(state.canSetTrap||state.canChooseSeat));
 }
 function selectSeat(n){selectedSeat=n;playCue('select');renderArena();renderStatus()}
 function openConfirm(){if(!selectedSeat)return;E.confirmSeat.textContent=selectedSeat;if(state.canSetTrap){E.confirmTitle.textContent='このイスに仕掛ける？';E.confirmDetail.textContent='相手には番号は送られません';$('#confirmKicker').textContent='SET ELECTRIC CHAIR'}else{E.confirmTitle.textContent='このイスに座る？';E.confirmDetail.textContent='決定後は変更できません';$('#confirmKicker').textContent='TAKE A SEAT'}E.confirmOverlay.classList.remove('hidden');playCue('confirm')}
-function finalChoice(){if(!selectedSeat)return;playCue('lock');send({type:state.canSetTrap?'set_trap':'choose_seat',seat:selectedSeat});E.confirmOverlay.classList.add('hidden')}
+function finalChoice(){if(!selectedSeat)return;if(!sessionReady){showToast('接続を確認中です…');return}playCue('lock');send({type:state.canSetTrap?'set_trap':'choose_seat',seat:selectedSeat});E.confirmOverlay.classList.add('hidden')}
 
 function showResult(r){
  resultTimers.forEach(clearTimeout);resultTimers=[];E.resultOverlay.className='overlay result-overlay';E.resultOverlay.classList.remove('reveal-phase');E.resultKicker.textContent='JUDGEMENT';E.resultSeat.textContent=r.seat;E.resultTitle.textContent='CHECK';E.resultDetail.textContent='判定中…';E.resultScore.textContent='';E.trapReveal.classList.add('hidden');E.trapRevealRing.innerHTML='';playCue('suspense');

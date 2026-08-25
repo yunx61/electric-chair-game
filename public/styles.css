@@ -134,3 +134,101 @@ button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;curso
 .difficulty-grid{width:100%}
 .arena-wrap{transform:translateY(-3.5dvh)}
 @media (max-height:760px){.arena-wrap{transform:translateY(-2.5dvh)}}
+
+
+/* ===== v3.4 structural layout correction ===== */
+/* Six explicit game rows. Dynamic AI/challenge banners live inside ONE context row. */
+#game.active{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:36px 20px 78px auto minmax(0,1fr) 52px;
+  grid-template-areas:
+    "topbar"
+    "connection"
+    "score"
+    "context"
+    "arena"
+    "action";
+  gap:4px;
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+}
+.topbar{grid-area:topbar}
+.connection-bar{grid-area:connection}
+.scoreboard{grid-area:score}
+.game-context{grid-area:context;display:grid;gap:4px;min-height:0}
+.game-context:empty{display:none}
+.arena-wrap{grid-area:arena;transform:none!important;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2px 0}
+.action-zone{grid-area:action;align-self:stretch}
+
+/* Keep hidden context children from taking any row space. */
+.game-context>.hidden{display:none!important}
+
+/* The arena is sized only from the space actually allocated to the arena row. */
+.arena{
+  --size:min(92vw,100%,390px);
+  width:var(--size);height:var(--size);flex:0 0 var(--size);
+  min-width:0;min-height:0;max-width:390px;max-height:390px;
+}
+
+/* Slightly smaller board only when the real visible viewport is short. */
+@media (max-height:760px){
+  #game.active{grid-template-rows:33px 19px 72px auto minmax(0,1fr) 48px;gap:3px}
+  .arena{--size:min(88vw,100%,350px)}
+  .action-zone{height:48px}
+}
+
+/* HOME: use the content height intentionally; do not pin the disclaimer to the bottom
+   and create a fake empty lower half. */
+.home-panel.active{
+  grid-template-rows:minmax(250px,34dvh) auto auto auto!important;
+  align-content:start;
+  gap:8px;
+}
+.hero-card{min-height:250px}
+.footnote{align-self:start;margin-top:1px}
+
+/* Result/confirm/start overlays: center against visual viewport without safe-area double offset. */
+.overlay{
+  top:var(--vvo,0px)!important;
+  left:0!important;
+  width:100vw!important;
+  height:var(--vvh,100dvh)!important;
+  padding:12px 14px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.overlay.hidden{display:none!important}
+.result-card,.confirm-card,.start-card{margin:0!important;max-height:calc(var(--vvh,100dvh) - 24px)!important}
+
+/* Avoid toast covering the primary action area. */
+.toast{bottom:calc(var(--safe-bottom) + 68px)}
+
+/* Readability floor for phone UI. */
+@media (max-width:430px){
+  .action-zone #selectionText{font-size:11px}
+  .arena-center h2{font-size:16px}.arena-center p{font-size:10px}
+  .player-card strong{font-size:15px}.player-card small{font-size:8px}
+  .room-badge b{font-size:13px}
+}
+
+/* Removed SAFE chairs leave the ring completely; reveal phase may show the just-used chair. */
+.chair-slot.removed{display:none!important}.chair-slot.used-reveal{opacity:1}
+
+/* v3.4 HOME balance on real mobile visual viewport */
+.home-panel.active{
+  grid-template-rows:minmax(240px,36dvh) minmax(160px,1fr) 48px 16px!important;
+  align-content:stretch!important;
+}
+.home-mode-grid{height:100%;grid-template-rows:minmax(74px,1fr) minmax(54px,.72fr)}
+.mode-card{height:100%}
+.footnote{align-self:center!important;margin:0!important}
+@media (max-height:760px){
+  .home-panel.active{grid-template-rows:minmax(220px,35dvh) minmax(150px,1fr) 44px 14px!important}
+  .home-tools .tool-btn{height:44px}
+}
+@media (max-height:650px){
+  .home-panel.active{grid-template-rows:minmax(190px,34dvh) minmax(128px,1fr) 38px 0!important}
+}
