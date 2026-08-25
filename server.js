@@ -7,7 +7,7 @@ const { WebSocketServer, WebSocket } = require('./mini-ws');
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const ROOM_TTL_MS = 60 * 60 * 1000;
-const RECONNECT_GRACE_MS = 90 * 1000;
+const RECONNECT_GRACE_MS = 180 * 1000;
 const MAX_NAME = 16;
 const RESULT_DELAY_MS = 5200;
 
@@ -21,14 +21,18 @@ const DIFFICULTIES = new Set(['easy','normal','hard']);
 
 const MIME = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const rooms = new Map();
+const SNAPSHOT_FILE = path.join(__dirname,'.room-snapshots.json');
+function persistRooms(){try{const data=[...rooms.entries()].map(([code,room])=>[code,{...room,players:room.players.map(p=>p?{...p,ws:null}:null)}]);fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(data))}catch(err){console.warn('snapshot write failed',err.message)}}
+function restoreRooms(){try{if(!fs.existsSync(SNAPSHOT_FILE))return;const data=JSON.parse(fs.readFileSync(SNAPSHOT_FILE,'utf8'));const now=Date.now();for(const[code,room]of data){if(now-(room.updatedAt||0)>ROOM_TTL_MS)continue;room.players=(room.players||[]).map(p=>p?{...p,ws:null,connected:Boolean(p.isAI),disconnectedAt:p.isAI?null:now}:null);room.history ||= {traps:[[],[]],sits:[[],[]],outcomes:[[],[]]};room.history.outcomes ||= [[],[]];rooms.set(code,room)}console.log(`Restored ${rooms.size} room(s)`)}catch(err){console.warn('snapshot restore failed',err.message)}}
 
 const server = http.createServer((req,res)=>{
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   if (urlPath === '/health') { res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify({ok:true,rooms:rooms.size,ts:Date.now()})); return; }
   if (urlPath === '/api/ai-profiles') { res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify(Object.values(AI_PROFILES))); return; }
   const requested = urlPath === '/' ? '/index.html' : urlPath;
-  const resolved = path.normalize(path.join(PUBLIC_DIR,requested));
-  if (!resolved.startsWith(PUBLIC_DIR)) { res.writeHead(403).end('Forbidden'); return; }
+  const resolved = path.resolve(PUBLIC_DIR, '.' + requested);
+  const publicRoot = path.resolve(PUBLIC_DIR) + path.sep;
+  if (resolved !== path.resolve(PUBLIC_DIR, 'index.html') && !resolved.startsWith(publicRoot)) { res.writeHead(403).end('Forbidden'); return; }
   fs.readFile(resolved,(err,data)=>{ if(err){res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});res.end('Not Found');return;} res.writeHead(200,{'Content-Type':MIME[path.extname(resolved)]||'application/octet-stream','Cache-Control':'no-store'});res.end(data); });
 });
 
@@ -38,21 +42,21 @@ function makeCode(){for(let i=0;i<1000;i++){const c=String(crypto.randomInt(1000
 function newPlayer(name,extra={}){return {id:crypto.randomUUID(),token:crypto.randomBytes(24).toString('hex'),name:cleanName(name),score:0,shocks:0,wins:0,ws:null,connected:false,disconnectedAt:null,isAI:false,...extra}}
 function newRoom(hostName,mode='human'){
   const code=makeCode(),host=newPlayer(hostName);
-  const room={code,mode,players:[host,null],phase:'waiting',setterIndex:null,sitterIndex:null,trapSeat:null,remainingSeats:Array.from({length:12},(_,i)=>i+1),turnNumber:0,lastResult:null,winnerIndex:null,endReason:null,rematchVotes:[false,false],gameNumber:0,createdAt:Date.now(),updatedAt:Date.now(),aiProfile:null,aiDifficulty:null,history:{traps:[[],[]],sits:[[],[]]}};
+  const room={code,mode,players:[host,null],phase:'waiting',setterIndex:null,sitterIndex:null,trapSeat:null,remainingSeats:Array.from({length:12},(_,i)=>i+1),turnNumber:0,lastResult:null,winnerIndex:null,endReason:null,pendingEnd:null,rematchVotes:[false,false],gameNumber:0,createdAt:Date.now(),updatedAt:Date.now(),aiProfile:null,aiDifficulty:null,history:{traps:[[],[]],sits:[[],[]],outcomes:[[],[]]}};
   rooms.set(code,room); return {room,player:host,index:0};
 }
 function publicPlayer(p){return p?{name:p.name,score:p.score,shocks:p.shocks,wins:p.wins,connected:p.connected,isAI:Boolean(p.isAI)}:null}
 function publicAI(room){if(!room.aiProfile)return null;const p=AI_PROFILES[room.aiProfile];return {...p,difficulty:room.aiDifficulty}}
 function viewFor(room,viewerIndex){return {code:room.code,you:viewerIndex,mode:room.mode,phase:room.phase,players:room.players.map(publicPlayer),setterIndex:room.setterIndex,sitterIndex:room.sitterIndex,remainingSeats:room.remainingSeats,turnNumber:room.turnNumber,gameNumber:room.gameNumber,lastResult:room.lastResult,winnerIndex:room.winnerIndex,endReason:room.endReason,rematchVotes:room.rematchVotes,ai:publicAI(room),canSetTrap:room.phase==='set_trap'&&viewerIndex===room.setterIndex,canChooseSeat:room.phase==='choose_seat'&&viewerIndex===room.sitterIndex}}
 function send(ws,payload){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(payload))}
-function broadcastState(room){room.updatedAt=Date.now();room.players.forEach((p,i)=>{if(p?.ws)send(p.ws,{type:'state',state:viewFor(room,i)})})}
+function broadcastState(room){room.updatedAt=Date.now();room.players.forEach((p,i)=>{if(p?.ws)send(p.ws,{type:'state',state:viewFor(room,i)})});persistRooms()}
 function fail(ws,m){send(ws,{type:'error',message:m})}
-function startGame(room){room.players.forEach(p=>{p.score=0;p.shocks=0});room.remainingSeats=Array.from({length:12},(_,i)=>i+1);room.turnNumber=1;room.gameNumber+=1;room.trapSeat=null;room.lastResult=null;room.winnerIndex=null;room.endReason=null;room.rematchVotes=[false,false];room.history={traps:[[],[]],sits:[[],[]]};room.setterIndex=crypto.randomInt(0,2);room.sitterIndex=1-room.setterIndex;room.phase='set_trap';broadcastState(room);scheduleAI(room)}
+function startGame(room){room.players.forEach(p=>{p.score=0;p.shocks=0});room.remainingSeats=Array.from({length:12},(_,i)=>i+1);room.turnNumber=1;room.gameNumber+=1;room.trapSeat=null;room.lastResult=null;room.winnerIndex=null;room.endReason=null;room.pendingEnd=null;room.rematchVotes=[false,false];room.history={traps:[[],[]],sits:[[],[]],outcomes:[[],[]]};room.setterIndex=crypto.randomInt(0,2);room.sitterIndex=1-room.setterIndex;room.phase='set_trap';broadcastState(room);scheduleAI(room)}
 function endGame(room,winnerIndex,reason){if(room.phase==='game_over')return;room.phase='game_over';room.winnerIndex=winnerIndex;room.endReason=reason;room.trapSeat=null;room.rematchVotes=[false,false];if(winnerIndex!=null&&room.players[winnerIndex])room.players[winnerIndex].wins+=1;broadcastState(room)}
-function checkEnd(room,actorIndex){const actor=room.players[actorIndex],opp=1-actorIndex;if(actor.shocks>=3){endGame(room,opp,'three_shocks');return true}if(actor.score>=40){endGame(room,actorIndex,'forty_points');return true}if(room.remainingSeats.length<=1){const[a,b]=room.players;endGame(room,a.score===b.score?null:(a.score>b.score?0:1),'one_seat_left');return true}return false}
+function getEndOutcome(room,actorIndex){const actor=room.players[actorIndex],opp=1-actorIndex;if(actor.shocks>=3)return{winnerIndex:opp,reason:'three_shocks'};if(actor.score>=40)return{winnerIndex:actorIndex,reason:'forty_points'};if(room.remainingSeats.length<=1){const[a,b]=room.players;return{winnerIndex:a.score===b.score?null:(a.score>b.score?0:1),reason:'one_seat_left'}}return null}
 function nextTurn(room){const old=room.setterIndex;room.setterIndex=room.sitterIndex;room.sitterIndex=old;room.trapSeat=null;room.phase='set_trap';room.turnNumber+=1;broadcastState(room);scheduleAI(room)}
 function findByToken(room,token){const index=room.players.findIndex(p=>p&&p.token===token);return index>=0?{player:room.players[index],index}:null}
-function attach(ws,room,player,index){if(player.ws&&player.ws!==ws&&player.ws.readyState===WebSocket.OPEN)player.ws.close(4001,'Signed in elsewhere');player.ws=ws;player.connected=true;player.disconnectedAt=null;ws.session={roomCode:room.code,playerToken:player.token,playerIndex:index};send(ws,{type:'session',roomCode:room.code,playerToken:player.token,playerIndex:index});broadcastState(room)}
+function attach(ws,room,player,index){if(player.ws&&player.ws!==ws&&player.ws.readyState===WebSocket.OPEN)player.ws.close(4001,'Signed in elsewhere');player.ws=ws;player.connected=true;player.disconnectedAt=null;ws.session={roomCode:room.code,playerToken:player.token,playerIndex:index};send(ws,{type:'session',roomCode:room.code,playerToken:player.token,playerIndex:index});broadcastState(room);scheduleAI(room)}
 
 function weightedPick(items,scoreFn){const scores=items.map(x=>Math.max(.001,scoreFn(x)));const total=scores.reduce((a,b)=>a+b,0);let r=Math.random()*total;for(let i=0;i<items.length;i++){r-=scores[i];if(r<=0)return items[i]}return items[items.length-1]}
 function freq(arr,n){return arr.filter(x=>x===n).length}
@@ -62,7 +66,7 @@ function aiTrapChoice(room){
   if(diff==='easy') return seats[crypto.randomInt(0,seats.length)];
   return weightedPick(seats,n=>{
     let s=1+n*.18; const obs=freq(humanSits,n)+(diff==='hard'?recency(humanSits,n)*.55:0);
-    s+=obs*(diff==='hard'?2.2:1.05);
+    s+=obs*(diff==='hard'?2.2:1.05);if(diff==='hard')s+=humanSeatTendency(room,n)*1.45;
     if(profile==='gou')s+=n>=9?3.5:n*.08;
     if(profile==='nagi')s+=n>=7&&n<=10?1.7:n>=11?.7:0;
     if(profile==='mika'){s+=((n+room.turnNumber)%3===0?1.5:0)+Math.random()*2.2}
@@ -70,7 +74,8 @@ function aiTrapChoice(room){
     return s;
   });
 }
-function estimatedHumanTrapProb(room,n){const traps=room.history.traps[0];const base=.45+n*.055;return base+freq(traps,n)*.9+recency(traps,n)*.28}
+function estimatedHumanTrapProb(room,n){const traps=room.history.traps[0],human=room.players[0];let base=.42+n*.052;const repeat=freq(traps,n)*.82, recent=recency(traps,n)*.26; if(human.score>=24&&n>=9)base+=.55;if(human.shocks>=2&&n<=6)base+=.18;return base+repeat+recent}
+function humanSeatTendency(room,n){const sits=room.history.sits[0],human=room.players[0];let t=freq(sits,n)*1.05+recency(sits,n)*.34+n*.05;if(human.score>=25&&n+human.score>=40)t+=2.4;if(human.shocks>=2&&n<=6)t+=1.25;if(sits.length>=2&&sits.at(-1)>8&&n>8)t+=.45;return t}
 function aiSeatChoice(room){
   const seats=room.remainingSeats,profile=room.aiProfile,diff=room.aiDifficulty,ai=room.players[1];
   if(diff==='easy') return seats[crypto.randomInt(0,seats.length)];
@@ -89,8 +94,9 @@ function applySeatChoice(room,idx,seat){
   const shocked=seat===room.trapSeat,sitter=room.players[idx],before=sitter.score;
   room.history.sits[idx].push(seat);
   if(shocked){sitter.score=0;sitter.shocks+=1}else{sitter.score+=seat;room.remainingSeats=room.remainingSeats.filter(n=>n!==seat)}
-  room.lastResult={seat,trapSeat:room.trapSeat,shocked,playerIndex:idx,pointsBefore:before,pointsAfter:sitter.score,gained:shocked?0:seat};room.trapSeat=null;room.phase='result';broadcastState(room);
-  if(checkEnd(room,idx))return;setTimeout(()=>{if(rooms.get(room.code)===room&&room.phase==='result')nextTurn(room)},RESULT_DELAY_MS)
+  room.history.outcomes[idx].push({seat,shocked,scoreBefore:before,scoreAfter:sitter.score});
+  room.lastResult={seat,trapSeat:room.trapSeat,shocked,playerIndex:idx,pointsBefore:before,pointsAfter:sitter.score,gained:shocked?0:seat};room.trapSeat=null;room.phase='result';room.pendingEnd=getEndOutcome(room,idx);broadcastState(room);
+  setTimeout(()=>{if(rooms.get(room.code)!==room||room.phase!=='result')return;const pending=room.pendingEnd;room.pendingEnd=null;if(pending)endGame(room,pending.winnerIndex,pending.reason);else nextTurn(room)},RESULT_DELAY_MS)
 }
 function scheduleAI(room){
   if(room.mode!=='ai'||room.phase==='game_over')return;
@@ -128,5 +134,7 @@ wss.on('connection',ws=>{
   ws.on('close',()=>{const s=ws.session;if(!s)return;const room=rooms.get(s.roomCode);if(!room)return;const found=findByToken(room,s.playerToken);if(!found||found.player.ws!==ws)return;found.player.ws=null;found.player.connected=false;found.player.disconnectedAt=Date.now();broadcastState(room)});
 });
 
-setInterval(()=>{const now=Date.now();for(const[code,room]of rooms){if(room.mode==='human'&&!['waiting','game_over'].includes(room.phase)){room.players.forEach((p,idx)=>{if(p&&!p.isAI&&!p.connected&&p.disconnectedAt&&now-p.disconnectedAt>RECONNECT_GRACE_MS&&room.phase!=='game_over'){const opp=room.players[1-idx];if(opp)endGame(room,1-idx,'disconnect_timeout')}})}if(now-room.updatedAt>ROOM_TTL_MS)rooms.delete(code)}},5000);
+setInterval(()=>{const now=Date.now();for(const[code,room]of rooms){if(room.mode==='human'&&!['waiting','game_over'].includes(room.phase)){room.players.forEach((p,idx)=>{if(p&&!p.isAI&&!p.connected&&p.disconnectedAt&&now-p.disconnectedAt>RECONNECT_GRACE_MS&&room.phase!=='game_over'){const opp=room.players[1-idx];if(opp)endGame(room,1-idx,'disconnect_timeout')}})}if(now-room.updatedAt>ROOM_TTL_MS){rooms.delete(code);persistRooms()}}},5000);
+restoreRooms();
+for(const room of rooms.values()){if(room.phase==='result')setTimeout(()=>{if(room.phase!=='result')return;const pending=room.pendingEnd;room.pendingEnd=null;if(pending)endGame(room,pending.winnerIndex,pending.reason);else nextTurn(room)},RESULT_DELAY_MS);}
 server.listen(PORT,'0.0.0.0',()=>console.log(`Electric Chair Duel listening on http://localhost:${PORT}`));
