@@ -1,6 +1,6 @@
 {
   "name": "electric-chair-duel",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
   "description": "Realtime electric chair mind game with online, AI, challenges, achievements and mobile-first one-screen UI",
   "main": "server.js",
