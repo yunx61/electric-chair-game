@@ -65,3 +65,72 @@ button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;curso
 @media (max-height:650px){.ai-banner{display:none!important}.challenge-banner{height:24px}.arena{--size:min(82vw,100%,calc(100dvh - 174px));min-width:185px;min-height:185px}.connection-bar{display:none}.home-panel.active{gap:4px}.lead{display:none}.footnote{display:none}.mode-card{min-height:52px}.home-tools .tool-btn{height:36px}}
 @media (min-width:600px){.app-shell{max-width:600px}.arena{--size:min(68vh,470px)}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}}
+
+/* ===== v3.3 visual-layout correction pass ===== */
+:root{--vvh:100dvh;--vvo:0px}
+
+/* HOME: compact visual hierarchy, no dead vertical space */
+.home-panel.active{grid-template-rows:minmax(210px,31dvh) auto auto 14px;gap:6px}
+.hero-card{height:100%;grid-template-rows:auto auto 1fr auto auto;padding:7px 10px 6px;overflow:hidden}
+.chair-emblem{height:clamp(64px,10.5dvh,88px);min-height:0}
+.chrome-title span{font-size:clamp(34px,9vw,48px)}
+.chrome-title strong{font-size:clamp(23px,6.2vw,32px)}
+.metal-sub{font-size:clamp(13px,3.5vw,18px)}
+.lead{font-size:clamp(10px,2.7vw,12px)}
+.mode-card{min-height:62px}.challenge-card{min-height:48px}
+.tool-btn{height:44px}.tool-btn b{font-size:10px}.tool-btn span{font-size:8.5px}
+.footnote{font-size:7.5px}
+
+/* SOLO: artwork and copy never occupy the same box */
+.solo-card-panel{justify-content:flex-start;overflow:hidden}
+.ai-roster{grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;flex:1;min-height:0}
+.ai-choice{display:grid;grid-template-rows:minmax(0,1fr) 58px;min-height:0;height:100%;padding:0;overflow:hidden}
+.ai-choice img{position:static;width:100%;height:100%;min-height:0;object-fit:cover;object-position:50% 22%;display:block}
+.ai-choice .ai-info{margin:0;height:58px;padding:6px 8px;background:linear-gradient(180deg,#13151acc,#090a0ef2);display:grid;grid-template-columns:1fr;align-content:center;gap:1px;position:relative;z-index:2}
+.ai-choice b{font-size:13px;line-height:1.05}.ai-choice small{font-size:8px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ai-choice p{display:none}
+.ai-choice.locked{opacity:.82;filter:none}.ai-choice.locked img{filter:grayscale(.72) brightness(.62)}
+.ai-choice.locked:after{inset:auto 5px 62px 5px;padding:4px 5px;font-size:7.5px;background:#050608e8}
+
+/* GAME: predictable center, seat placement comes from JS coordinates */
+.arena-wrap{display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}
+.arena{--size:min(92vw,100%,calc(100dvh - 238px));position:relative;flex:0 0 var(--size);width:var(--size);height:var(--size);min-width:250px;min-height:250px;max-width:390px;max-height:390px}
+.chair-slot{position:absolute;z-index:5;width:clamp(42px,11.5vw,54px);height:clamp(48px,13vw,62px);margin:0;transform:translate(-50%,-50%) rotate(var(--rot,0deg));transform-origin:center;display:grid;place-items:center;border:0;background:transparent;padding:0}
+.chair .num{transform:translateX(-50%) rotate(var(--counter-rot,0deg))}
+
+/* Result/confirmation overlays are centered on the ACTUAL visual viewport */
+.overlay{inset:auto;left:0;top:var(--vvo);width:100%;height:var(--vvh);padding:calc(var(--safe-top) + 10px) 14px calc(var(--safe-bottom) + 10px);display:flex;align-items:center;justify-content:center}
+.result-overlay .result-card,.confirm-card,.start-card{position:relative;left:auto;top:auto;transform:none;margin:0 auto}
+.result-card{width:min(calc(100vw - 28px),430px);max-height:min(74dvh,620px);overflow:hidden;padding:18px 16px}
+.result-card h2{font-size:clamp(36px,11vw,48px);line-height:.98;margin:3px 0}
+.result-seat{width:64px;height:64px;font-size:31px;margin:7px auto}
+.result-score{font-size:clamp(26px,8vw,34px)}
+.result-card p{font-size:12px;margin:6px 0}
+.trap-reveal{margin-top:8px}.trap-reveal-ring{width:160px;height:160px;margin:3px auto}
+.trap-mini-seat{width:26px;height:26px;margin:0;transform:translate(-50%,-50%);font-size:9px}
+
+/* Keep result hierarchy compact and readable */
+.result-overlay.safe:not(.reveal-phase) .trap-reveal{display:none!important}
+.result-overlay.reveal-phase .result-card{padding-top:16px}
+.result-overlay.reveal-phase .result-title{font-size:clamp(28px,8vw,38px)}
+
+/* Better legibility on iPhone 15-class widths */
+@media (max-width:430px){
+  .section-head small{font-size:9px}.section-head h2{font-size:27px}.section-head p{font-size:11px}
+  .setup-card label{font-size:9px}.difficulty{font-size:9px}.setup-card input{font-size:17px}
+  .player-card small{font-size:8px}.player-card strong{font-size:14px}.player-card div em{font-size:10px}.player-card p{font-size:9px}.player-card i{font-size:8px}
+  .connection-bar{font-size:8px}.room-badge{font-size:9px}.room-badge b{font-size:12px}
+  .ai-banner small{font-size:8px}.ai-banner b{font-size:12px}.ai-banner p{font-size:9px}
+  .game-label{font-size:8px}.arena-center h2{font-size:15px}.arena-center p{font-size:9px}
+  .action-zone #selectionText{font-size:10px}.action-zone .btn{font-size:13px}
+}
+@media (max-height:760px){
+  .home-panel.active{grid-template-rows:minmax(178px,29dvh) auto auto 12px}.chair-emblem{height:66px}
+  .ai-choice{grid-template-rows:minmax(0,1fr) 52px}.ai-choice .ai-info{height:52px}.ai-choice.locked:after{bottom:56px}
+  .arena{--size:min(88vw,100%,calc(100dvh - 205px));min-width:220px;min-height:220px}
+}
+
+/* v3.3 final phone-fit fixes */
+.name-difficulty-row{grid-template-columns:1fr;gap:6px}
+.difficulty-grid{width:100%}
+.arena-wrap{transform:translateY(-3.5dvh)}
+@media (max-height:760px){.arena-wrap{transform:translateY(-2.5dvh)}}
