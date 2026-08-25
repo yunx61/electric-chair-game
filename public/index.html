@@ -33,6 +33,7 @@
           <button id="goOnlineBtn" class="mode-card online-card"><b>ONLINE BATTLE</b><span>友達と通信対戦</span></button>
           <button id="goSoloBtn" class="mode-card solo-card"><b>SOLO BATTLE</b><span>個性の違うAIと1人対戦</span></button>
           <button id="rulesBtn" class="btn rules-btn">ルール説明</button>
+          <div class="sound-controls" aria-label="サウンド設定"><button id="bgmToggle" class="sound-toggle">BGM ON</button><button id="seToggle" class="sound-toggle">SE ON</button></div>
         </div>
       </section>
 
@@ -102,6 +103,8 @@
   <div id="confirmOverlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="confirm-card"><small id="confirmKicker">CONFIRM</small><div id="confirmSeat" class="confirm-seat">12</div><h2 id="confirmTitle">このイスで決定？</h2><p id="confirmDetail">決定後は変更できません</p><div class="confirm-actions"><button id="cancelChoiceBtn" class="btn ghost">戻る</button><button id="finalChoiceBtn" class="btn danger">決定</button></div></div></div>
 
   <div id="resultOverlay" class="overlay result-overlay hidden" role="dialog" aria-live="assertive"><div class="flash-layer"></div><div class="electric-burst"></div><div class="result-card"><small id="resultKicker">RESULT</small><div id="resultSeat" class="result-seat">12</div><h2 id="resultTitle">SAFE</h2><p id="resultDetail"></p><div id="resultScore" class="result-score"></div><div id="trapReveal" class="trap-reveal hidden" aria-label="電気イスの位置"><div class="trap-reveal-label">仕掛けられていた電気イス</div><div id="trapRevealRing" class="trap-reveal-ring"></div></div></div></div>
+
+  <div id="startOverlay" class="overlay start-overlay hidden" aria-live="polite"><div class="start-card"><small id="startMode">BATTLE</small><div class="start-versus"><b id="startP0">PLAYER</b><span>VS</span><b id="startP1">RIVAL</b></div><h2>ELECTRIC CHAIR DUEL</h2><strong>GAME START</strong></div></div>
 
   <div id="gameOverOverlay" class="overlay hidden" role="dialog"><div class="result-card gameover-card"><small>GAME OVER</small><h2 id="winnerTitle">WINNER</h2><p id="winnerDetail"></p><div id="seriesScore" class="series-score"></div><button id="restartBtn" class="btn primary">再戦を希望する</button><div id="rematchStatus" class="rematch-status"></div><button id="backBtn" class="btn ghost">ロビーへ戻る</button></div></div>
   <div id="toast" class="toast hidden"></div>
