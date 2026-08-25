@@ -1,1 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#090a0b" />
+  <title>ELECTRIC CHAIR DUEL</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <main id="app" class="app-shell">
+    <section id="lobby" class="screen active">
+      <div class="brand-lockup">
+        <div class="warning-strip">DANGER / MIND GAME / DANGER / MIND GAME</div>
+        <h1><span>ELECTRIC</span><strong>CHAIR DUEL</strong></h1>
+        <p>12脚のイスを巡る、2人用オンライン心理戦。</p>
+      </div>
 
+      <div class="panel lobby-panel">
+        <label>PLAYER NAME</label>
+        <input id="nameInput" maxlength="16" placeholder="名前を入力" autocomplete="nickname" />
+        <button id="createBtn" class="btn primary">ルームを作る</button>
+        <div class="divider"><span>OR</span></div>
+        <div class="join-row">
+          <input id="codeInput" inputmode="numeric" maxlength="6" placeholder="6桁ルームID" />
+          <button id="joinBtn" class="btn">参加</button>
+        </div>
+        <button id="resumeBtn" class="btn ghost hidden">前の対戦に再接続</button>
+      </div>
+      <p class="footnote">非公式ファンメイド。番組ロゴ・映像・音源は使用していません。</p>
+    </section>
+
+    <section id="game" class="screen">
+      <header class="topbar">
+        <button id="leaveBtn" class="icon-btn" aria-label="退出">×</button>
+        <div class="room-badge">ROOM <b id="roomCode">------</b></div>
+        <button id="copyBtn" class="icon-btn" aria-label="ルームIDをコピー">⧉</button>
+      </header>
+
+      <section class="scoreboard">
+        <article class="player-card" id="p0card">
+          <small>PLAYER 1</small>
+          <strong id="p0name">---</strong>
+          <div><span id="p0score">0</span><em>PT</em></div>
+          <p id="p0shock">⚡ 0 / 3</p>
+        </article>
+        <div class="vs">VS</div>
+        <article class="player-card" id="p1card">
+          <small>PLAYER 2</small>
+          <strong id="p1name">---</strong>
+          <div><span id="p1score">0</span><em>PT</em></div>
+          <p id="p1shock">⚡ 0 / 3</p>
+        </article>
+      </section>
+
+      <section class="status-panel">
+        <div class="turn-label">TURN <span id="turnNo">1</span></div>
+        <h2 id="statusTitle">対戦相手を待っています</h2>
+        <p id="statusSub">ルームIDを相手に伝えてください</p>
+      </section>
+
+      <section class="chair-grid" id="chairGrid" aria-label="イス選択"></section>
+
+      <section class="action-zone">
+        <div id="selectionText">イスを選択してください</div>
+        <button id="confirmBtn" class="btn danger" disabled>決定する</button>
+      </section>
+
+      <section class="rules-mini">
+        <span>40PTで勝利</span><span>⚡3回で敗北</span><span>残り1脚で得点勝負</span>
+      </section>
+    </section>
+  </main>
+
+  <div id="resultOverlay" class="overlay hidden" role="dialog" aria-live="assertive">
+    <div class="electric-burst"></div>
+    <div class="result-card">
+      <small id="resultKicker">RESULT</small>
+      <h2 id="resultTitle">SAFE</h2>
+      <p id="resultDetail"></p>
+    </div>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay hidden" role="dialog">
+    <div class="result-card gameover-card">
+      <small>GAME OVER</small>
+      <h2 id="winnerTitle">WINNER</h2>
+      <p id="winnerDetail"></p>
+      <button id="restartBtn" class="btn primary">再戦する</button>
+      <button id="backBtn" class="btn ghost">ロビーへ戻る</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
