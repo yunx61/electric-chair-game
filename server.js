@@ -22,9 +22,14 @@ const MIME = {
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, rooms: rooms.size, ts: Date.now() }));
+    return;
+  }
+
   const requested = urlPath === '/' ? '/index.html' : urlPath;
   const resolved = path.normalize(path.join(PUBLIC_DIR, requested));
-
   if (!resolved.startsWith(PUBLIC_DIR)) {
     res.writeHead(403).end('Forbidden');
     return;
@@ -33,7 +38,7 @@ const server = http.createServer((req, res) => {
   fs.readFile(resolved, (err, data) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not found');
+      res.end('Not Found');
       return;
     }
     res.writeHead(200, {
@@ -67,6 +72,7 @@ function newPlayer(name) {
     name: cleanName(name),
     score: 0,
     shocks: 0,
+    wins: 0,
     ws: null,
     connected: false,
     disconnectedAt: null
@@ -88,6 +94,8 @@ function newRoom(hostName) {
     lastResult: null,
     winnerIndex: null,
     endReason: null,
+    rematchVotes: [false, false],
+    gameNumber: 0,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -100,6 +108,7 @@ function publicPlayer(p) {
     name: p.name,
     score: p.score,
     shocks: p.shocks,
+    wins: p.wins,
     connected: p.connected
   } : null;
 }
@@ -114,19 +123,19 @@ function viewFor(room, viewerIndex) {
     sitterIndex: room.sitterIndex,
     remainingSeats: room.remainingSeats,
     turnNumber: room.turnNumber,
+    gameNumber: room.gameNumber,
     lastResult: room.lastResult,
     winnerIndex: room.winnerIndex,
     endReason: room.endReason,
-    // The secret trap seat is deliberately never serialized to clients while active.
+    rematchVotes: room.rematchVotes,
     canSetTrap: room.phase === 'set_trap' && viewerIndex === room.setterIndex,
     canChooseSeat: room.phase === 'choose_seat' && viewerIndex === room.sitterIndex
+    // trapSeat intentionally omitted while active.
   };
 }
 
 function send(ws, payload) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-  }
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
 
 function broadcastState(room) {
@@ -147,10 +156,12 @@ function startGame(room) {
   });
   room.remainingSeats = Array.from({ length: 12 }, (_, i) => i + 1);
   room.turnNumber = 1;
+  room.gameNumber += 1;
   room.trapSeat = null;
   room.lastResult = null;
   room.winnerIndex = null;
   room.endReason = null;
+  room.rematchVotes = [false, false];
   room.setterIndex = crypto.randomInt(0, 2);
   room.sitterIndex = 1 - room.setterIndex;
   room.phase = 'set_trap';
@@ -158,17 +169,19 @@ function startGame(room) {
 }
 
 function endGame(room, winnerIndex, reason) {
+  if (room.phase === 'game_over') return;
   room.phase = 'game_over';
   room.winnerIndex = winnerIndex;
   room.endReason = reason;
   room.trapSeat = null;
+  room.rematchVotes = [false, false];
+  if (winnerIndex != null && room.players[winnerIndex]) room.players[winnerIndex].wins += 1;
   broadcastState(room);
 }
 
 function checkEnd(room, actorIndex) {
   const actor = room.players[actorIndex];
   const opponentIndex = 1 - actorIndex;
-
   if (actor.shocks >= 3) {
     endGame(room, opponentIndex, 'three_shocks');
     return true;
@@ -214,7 +227,7 @@ function attach(ws, room, player, index) {
 }
 
 wss.on('connection', (ws) => {
-  send(ws, { type: 'hello' });
+  send(ws, { type: 'hello', serverTime: Date.now() });
 
   ws.on('message', (raw) => {
     let msg;
@@ -222,6 +235,11 @@ wss.on('connection', (ws) => {
     catch { return fail(ws, '不正なデータです'); }
 
     try {
+      if (msg.type === 'ping') {
+        send(ws, { type: 'pong', ts: Date.now() });
+        return;
+      }
+
       if (msg.type === 'create_room') {
         const { room, player, index } = newRoom(msg.name);
         attach(ws, room, player, index);
@@ -301,13 +319,15 @@ wss.on('connection', (ws) => {
         if (checkEnd(room, idx)) return;
         setTimeout(() => {
           if (rooms.get(room.code) === room && room.phase === 'result') nextTurn(room);
-        }, 2800);
+        }, 3600);
         return;
       }
 
-      if (msg.type === 'restart') {
+      if (msg.type === 'rematch_vote') {
         if (room.phase !== 'game_over') return fail(ws, 'ゲーム終了後に使えます');
-        startGame(room);
+        room.rematchVotes[idx] = true;
+        if (room.rematchVotes[0] && room.rematchVotes[1]) startGame(room);
+        else broadcastState(room);
         return;
       }
 
@@ -344,7 +364,6 @@ wss.on('connection', (ws) => {
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
-    // A disconnected player only forfeits after the grace window; this runs server-side.
     if (!['waiting', 'game_over'].includes(room.phase)) {
       room.players.forEach((p, idx) => {
         if (p && !p.connected && p.disconnectedAt && now - p.disconnectedAt > RECONNECT_GRACE_MS && room.phase !== 'game_over') {
