@@ -3,132 +3,107 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#080909" />
+  <meta name="theme-color" content="#13090b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>ELECTRIC CHAIR DUEL</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="noise"></div>
-  <div class="scanlines"></div>
+  <div class="storm-bg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="noise"></div><div class="scanlines"></div>
   <main id="app" class="app-shell">
     <section id="lobby" class="screen active">
-      <div class="brand-lockup">
-        <div class="warning-strip">DANGER / MIND GAME / DANGER / MIND GAME</div>
-        <h1><span>ELECTRIC</span><strong>CHAIR DUEL</strong></h1>
-        <p>12脚のイスを巡る、2人用オンライン心理戦。</p>
-      </div>
+      <nav class="home-tabs" aria-label="メニュー">
+        <button class="tab active" data-tab="home">HOME</button>
+        <button class="tab" data-tab="online">ONLINE</button>
+        <button class="tab" data-tab="solo">SOLO</button>
+      </nav>
 
-      <div class="panel lobby-panel">
-        <label>PLAYER NAME</label>
-        <input id="nameInput" maxlength="16" placeholder="名前を入力" autocomplete="nickname" />
-        <button id="createBtn" class="btn primary">ルームを作る</button>
-        <div class="divider"><span>OR</span></div>
-        <div class="join-row">
-          <input id="codeInput" inputmode="numeric" maxlength="6" placeholder="6桁ルームID" />
-          <button id="joinBtn" class="btn">参加</button>
+      <section id="homeTab" class="tab-panel active">
+        <div class="brand-lockup homage-brand">
+          <div class="storm-kicker">DANGER / PSYCHOLOGICAL BATTLE / HIGH VOLTAGE</div>
+          <h1 class="chrome-title"><span>電撃イス</span><strong>DUEL</strong></h1>
+          <div class="chair-emblem" aria-hidden="true">
+            <svg viewBox="0 0 120 100" role="img"><path d="M33 15h54v42H33zM26 54h68v20H26zM34 73l-5 24M86 73l5 24M39 15V4M81 15V4"/><path class="bolt" d="M13 38l15 2-10 13 13 2-20 24 7-18-13-2zM105 32l-13 4 8 10-12 6 18 17-5-14 13-7z"/><text x="60" y="46">12</text></svg>
+          </div>
+          <p class="metal-sub">ELECTRIC CHAIR DUEL</p>
+          <p class="lead">12脚の円陣で仕掛ける、読み合い特化の電撃心理戦。</p>
         </div>
-        <div id="inviteHint" class="invite-hint hidden">招待リンクからルームIDを読み込みました</div>
-        <button id="resumeBtn" class="btn ghost hidden">前の対戦に再接続</button>
-      </div>
+        <div class="home-actions">
+          <button id="goOnlineBtn" class="mode-card online-card"><b>ONLINE BATTLE</b><span>友達と通信対戦</span></button>
+          <button id="goSoloBtn" class="mode-card solo-card"><b>SOLO BATTLE</b><span>個性の違うAIと1人対戦</span></button>
+          <button id="rulesBtn" class="btn rules-btn">ルール説明</button>
+        </div>
+      </section>
+
+      <section id="onlineTab" class="tab-panel">
+        <div class="section-head"><small>ONLINE BATTLE</small><h2>通信対戦</h2><p>ルームを作るか、6桁のルームIDで参加。</p></div>
+        <div class="panel lobby-panel">
+          <label>PLAYER NAME</label>
+          <input id="nameInput" maxlength="16" placeholder="名前を入力" autocomplete="nickname" />
+          <button id="createBtn" class="btn primary">ルームを作る</button>
+          <div class="divider"><span>OR</span></div>
+          <div class="join-row"><input id="codeInput" inputmode="numeric" maxlength="6" placeholder="6桁ルームID" /><button id="joinBtn" class="btn">参加</button></div>
+          <div id="inviteHint" class="invite-hint hidden">招待リンクからルームIDを読み込みました</div>
+          <button id="resumeBtn" class="btn ghost hidden">前の対戦に再接続</button>
+        </div>
+      </section>
+
+      <section id="soloTab" class="tab-panel">
+        <div class="section-head"><small>SOLO BATTLE</small><h2>AI対戦</h2><p>対戦相手の性格と難易度で読み筋が変わります。</p></div>
+        <div class="panel lobby-panel">
+          <label>YOUR NAME</label><input id="soloNameInput" maxlength="16" placeholder="名前を入力" autocomplete="nickname" />
+          <label>AI OPPONENT</label>
+          <div id="aiRoster" class="ai-roster" role="radiogroup" aria-label="AI対戦相手"></div>
+          <label>DIFFICULTY</label>
+          <div class="difficulty-grid">
+            <button class="difficulty" data-difficulty="easy"><b>EASY</b><span>読みは浅め</span></button>
+            <button class="difficulty active" data-difficulty="normal"><b>NORMAL</b><span>標準</span></button>
+            <button class="difficulty" data-difficulty="hard"><b>HARD</b><span>傾向を学習</span></button>
+          </div>
+          <button id="startAiBtn" class="btn primary">AI対戦を開始</button>
+        </div>
+      </section>
       <p class="footnote">非公式ファンメイド。番組ロゴ・映像・音源は使用していません。</p>
     </section>
 
     <section id="game" class="screen">
       <header class="topbar">
         <button id="leaveBtn" class="icon-btn" aria-label="退出">×</button>
-        <div class="room-badge"><span class="live-dot"></span> ROOM <b id="roomCode">------</b></div>
+        <div class="room-badge"><span class="live-dot"></span> <span id="roomLabel">ROOM</span> <b id="roomCode">------</b></div>
         <button id="shareBtn" class="icon-btn" aria-label="招待リンクを共有">↗</button>
       </header>
-
-      <div id="connectionBar" class="connection-bar connecting">
-        <span class="connection-dot"></span>
-        <b id="connectionText">CONNECTING</b>
-        <span id="opponentConnection"></span>
-      </div>
+      <div id="connectionBar" class="connection-bar connecting"><span class="connection-dot"></span><b id="connectionText">CONNECTING</b><span id="opponentConnection"></span></div>
+      <div id="aiBanner" class="ai-banner hidden"><div id="aiAvatar" class="ai-avatar"></div><div><small id="aiStyle"></small><b id="aiName"></b><p id="aiQuote"></p></div></div>
 
       <section class="scoreboard">
-        <article class="player-card" id="p0card">
-          <small>PLAYER 1</small>
-          <strong id="p0name">---</strong>
-          <div><span id="p0score">0</span><em>PT</em></div>
-          <p id="p0shock">⚡ 0 / 3</p>
-          <i id="p0wins">0 WIN</i>
-        </article>
+        <article class="player-card" id="p0card"><small>PLAYER 1</small><strong id="p0name">---</strong><div><span id="p0score">0</span><em>PT</em></div><p id="p0shock">⚡ 0 / 3</p><i id="p0wins">0 WIN</i></article>
         <div class="vs">VS</div>
-        <article class="player-card" id="p1card">
-          <small>PLAYER 2</small>
-          <strong id="p1name">---</strong>
-          <div><span id="p1score">0</span><em>PT</em></div>
-          <p id="p1shock">⚡ 0 / 3</p>
-          <i id="p1wins">0 WIN</i>
-        </article>
+        <article class="player-card" id="p1card"><small>PLAYER 2</small><strong id="p1name">---</strong><div><span id="p1score">0</span><em>PT</em></div><p id="p1shock">⚡ 0 / 3</p><i id="p1wins">0 WIN</i></article>
       </section>
 
-      <section class="arena-wrap">
-        <div class="arena" id="chairGrid" aria-label="イス選択">
-          <div class="arena-rings"></div>
-          <div class="arena-center">
-            <div class="turn-label">GAME <span id="gameNo">1</span> / TURN <span id="turnNo">1</span></div>
-            <h2 id="statusTitle">対戦相手を待っています</h2>
-            <p id="statusSub">ルームIDを相手に伝えてください</p>
-            <div id="thinkingDots" class="thinking hidden"><span></span><span></span><span></span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="action-zone">
-        <div id="selectionText">イスを選択してください</div>
-        <button id="confirmBtn" class="btn danger" disabled>決定する</button>
-      </section>
-
-      <section class="rules-mini">
-        <span>40PTで勝利</span><span>⚡3回で敗北</span><span>残り1脚で得点勝負</span>
-      </section>
+      <section class="arena-wrap"><div class="arena" id="chairGrid" aria-label="イス選択"><div class="arena-rings"></div><div class="arena-lightning"></div><div class="arena-center"><div class="turn-label">GAME <span id="gameNo">1</span> / TURN <span id="turnNo">1</span></div><h2 id="statusTitle">対戦相手を待っています</h2><p id="statusSub">ルームIDを相手に伝えてください</p><div id="thinkingDots" class="thinking hidden"><span></span><span></span><span></span></div></div></div></section>
+      <section class="action-zone"><div id="selectionText">イスを選択してください</div><button id="confirmBtn" class="btn danger" disabled>決定する</button></section>
+      <section class="rules-mini"><span>40PTで勝利</span><span>⚡3回で敗北</span><span>残り1脚で得点勝負</span></section>
     </section>
   </main>
 
-  <div id="confirmOverlay" class="overlay hidden" role="dialog" aria-modal="true">
-    <div class="confirm-card">
-      <small id="confirmKicker">CONFIRM</small>
-      <div id="confirmSeat" class="confirm-seat">12</div>
-      <h2 id="confirmTitle">このイスで決定？</h2>
-      <p id="confirmDetail">決定後は変更できません</p>
-      <div class="confirm-actions">
-        <button id="cancelChoiceBtn" class="btn ghost">戻る</button>
-        <button id="finalChoiceBtn" class="btn danger">決定</button>
-      </div>
-    </div>
+  <div id="rulesOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card rules-card"><button class="modal-close" data-close="rulesOverlay">×</button><small>HOW TO PLAY</small><h2>ルール説明</h2>
+      <ol><li><b>1〜12のイス</b>を円形に配置。毎ターン、仕掛ける側と座る側に分かれます。</li><li>仕掛ける側は、残っているイスの<b>1脚に電気をセット</b>します。場所は相手には見えません。</li><li>座る側は1脚を選択。<b>セーフならイス番号と同じポイントを獲得</b>し、そのイスは場から消えます。</li><li>電気イスに座ると<b>その時点のポイントを全没収</b>し、感電回数が1増えます。感電したイスは残ります。</li><li><b>40ポイント到達</b>で勝利。<b>3回感電</b>すると即敗北。残り1脚になった場合は得点の高い側が勝利です。</li><li>SAFE時には、そのターンで<b>実際に電気が仕掛けられていたイス</b>が公開されます。過去の傾向を次の読み合いに使えます。</li></ol>
+      <div class="rule-note">AI対戦でもルールは同じ。HARDほど過去の選択傾向を強く参照しますが、現在の電気イス位置を覗くことはありません。</div>
+      <button class="btn primary" data-close="rulesOverlay">閉じる</button></div>
   </div>
 
-  <div id="resultOverlay" class="overlay result-overlay hidden" role="dialog" aria-live="assertive">
-    <div class="flash-layer"></div>
-    <div class="electric-burst"></div>
-    <div class="result-card">
-      <small id="resultKicker">RESULT</small>
-      <div id="resultSeat" class="result-seat">12</div>
-      <h2 id="resultTitle">SAFE</h2>
-      <p id="resultDetail"></p>
-      <div id="resultScore" class="result-score"></div>
-      <div id="trapReveal" class="trap-reveal hidden" aria-label="電気イスの位置">
-        <div class="trap-reveal-label">仕掛けられていた電気イス</div>
-        <div id="trapRevealRing" class="trap-reveal-ring"></div>
-      </div>
-    </div>
+  <div id="shareOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card share-card"><button class="modal-close" data-close="shareOverlay">×</button><small>INVITE</small><h2>対戦に招待</h2><p>このリンクを送るとルームIDが自動入力されます。</p><div id="shareUrl" class="share-url"></div><div class="share-grid"><button id="nativeShareBtn" class="share-service">共有メニュー</button><button id="lineShareBtn" class="share-service">LINE</button><button id="xShareBtn" class="share-service">X</button><button id="mailShareBtn" class="share-service">メール</button><button id="copyShareBtn" class="share-service wide">リンクをコピー</button></div></div>
   </div>
 
-  <div id="gameOverOverlay" class="overlay hidden" role="dialog">
-    <div class="result-card gameover-card">
-      <small>GAME OVER</small>
-      <h2 id="winnerTitle">WINNER</h2>
-      <p id="winnerDetail"></p>
-      <div id="seriesScore" class="series-score"></div>
-      <button id="restartBtn" class="btn primary">再戦を希望する</button>
-      <div id="rematchStatus" class="rematch-status"></div>
-      <button id="backBtn" class="btn ghost">ロビーへ戻る</button>
-    </div>
-  </div>
+  <div id="confirmOverlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="confirm-card"><small id="confirmKicker">CONFIRM</small><div id="confirmSeat" class="confirm-seat">12</div><h2 id="confirmTitle">このイスで決定？</h2><p id="confirmDetail">決定後は変更できません</p><div class="confirm-actions"><button id="cancelChoiceBtn" class="btn ghost">戻る</button><button id="finalChoiceBtn" class="btn danger">決定</button></div></div></div>
 
+  <div id="resultOverlay" class="overlay result-overlay hidden" role="dialog" aria-live="assertive"><div class="flash-layer"></div><div class="electric-burst"></div><div class="result-card"><small id="resultKicker">RESULT</small><div id="resultSeat" class="result-seat">12</div><h2 id="resultTitle">SAFE</h2><p id="resultDetail"></p><div id="resultScore" class="result-score"></div><div id="trapReveal" class="trap-reveal hidden" aria-label="電気イスの位置"><div class="trap-reveal-label">仕掛けられていた電気イス</div><div id="trapRevealRing" class="trap-reveal-ring"></div></div></div></div>
+
+  <div id="gameOverOverlay" class="overlay hidden" role="dialog"><div class="result-card gameover-card"><small>GAME OVER</small><h2 id="winnerTitle">WINNER</h2><p id="winnerDetail"></p><div id="seriesScore" class="series-score"></div><button id="restartBtn" class="btn primary">再戦を希望する</button><div id="rematchStatus" class="rematch-status"></div><button id="backBtn" class="btn ghost">ロビーへ戻る</button></div></div>
   <div id="toast" class="toast hidden"></div>
   <script src="/app.js"></script>
 </body>

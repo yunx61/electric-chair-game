@@ -1,503 +1,64 @@
-(() => {
-  const $ = (s) => document.querySelector(s);
-  const lobby = $('#lobby');
-  const game = $('#game');
-  const nameInput = $('#nameInput');
-  const codeInput = $('#codeInput');
-  const createBtn = $('#createBtn');
-  const joinBtn = $('#joinBtn');
-  const resumeBtn = $('#resumeBtn');
-  const inviteHint = $('#inviteHint');
-  const roomCode = $('#roomCode');
-  const shareBtn = $('#shareBtn');
-  const leaveBtn = $('#leaveBtn');
-  const chairGrid = $('#chairGrid');
-  const confirmBtn = $('#confirmBtn');
-  const selectionText = $('#selectionText');
-  const statusTitle = $('#statusTitle');
-  const statusSub = $('#statusSub');
-  const thinkingDots = $('#thinkingDots');
-  const turnNo = $('#turnNo');
-  const gameNo = $('#gameNo');
-  const connectionBar = $('#connectionBar');
-  const connectionText = $('#connectionText');
-  const opponentConnection = $('#opponentConnection');
-  const confirmOverlay = $('#confirmOverlay');
-  const confirmSeat = $('#confirmSeat');
-  const confirmTitle = $('#confirmTitle');
-  const confirmDetail = $('#confirmDetail');
-  const finalChoiceBtn = $('#finalChoiceBtn');
-  const cancelChoiceBtn = $('#cancelChoiceBtn');
-  const resultOverlay = $('#resultOverlay');
-  const resultKicker = $('#resultKicker');
-  const resultSeat = $('#resultSeat');
-  const resultTitle = $('#resultTitle');
-  const resultDetail = $('#resultDetail');
-  const resultScore = $('#resultScore');
-  const trapReveal = $('#trapReveal');
-  const trapRevealRing = $('#trapRevealRing');
-  const gameOverOverlay = $('#gameOverOverlay');
-  const winnerTitle = $('#winnerTitle');
-  const winnerDetail = $('#winnerDetail');
-  const seriesScore = $('#seriesScore');
-  const restartBtn = $('#restartBtn');
-  const rematchStatus = $('#rematchStatus');
-  const backBtn = $('#backBtn');
-  const toast = $('#toast');
+(()=>{
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const E={lobby:$('#lobby'),game:$('#game'),name:$('#nameInput'),soloName:$('#soloNameInput'),code:$('#codeInput'),create:$('#createBtn'),join:$('#joinBtn'),resume:$('#resumeBtn'),inviteHint:$('#inviteHint'),goOnline:$('#goOnlineBtn'),goSolo:$('#goSoloBtn'),rules:$('#rulesBtn'),startAi:$('#startAiBtn'),aiRoster:$('#aiRoster'),roomCode:$('#roomCode'),roomLabel:$('#roomLabel'),share:$('#shareBtn'),leave:$('#leaveBtn'),chairGrid:$('#chairGrid'),confirm:$('#confirmBtn'),selection:$('#selectionText'),statusTitle:$('#statusTitle'),statusSub:$('#statusSub'),thinking:$('#thinkingDots'),turnNo:$('#turnNo'),gameNo:$('#gameNo'),connectionBar:$('#connectionBar'),connectionText:$('#connectionText'),opponentConnection:$('#opponentConnection'),confirmOverlay:$('#confirmOverlay'),confirmSeat:$('#confirmSeat'),confirmTitle:$('#confirmTitle'),confirmDetail:$('#confirmDetail'),finalChoice:$('#finalChoiceBtn'),cancelChoice:$('#cancelChoiceBtn'),resultOverlay:$('#resultOverlay'),resultKicker:$('#resultKicker'),resultSeat:$('#resultSeat'),resultTitle:$('#resultTitle'),resultDetail:$('#resultDetail'),resultScore:$('#resultScore'),trapReveal:$('#trapReveal'),trapRevealRing:$('#trapRevealRing'),gameOver:$('#gameOverOverlay'),winnerTitle:$('#winnerTitle'),winnerDetail:$('#winnerDetail'),seriesScore:$('#seriesScore'),restart:$('#restartBtn'),rematchStatus:$('#rematchStatus'),back:$('#backBtn'),toast:$('#toast'),rulesOverlay:$('#rulesOverlay'),shareOverlay:$('#shareOverlay'),shareUrl:$('#shareUrl'),nativeShare:$('#nativeShareBtn'),lineShare:$('#lineShareBtn'),xShare:$('#xShareBtn'),mailShare:$('#mailShareBtn'),copyShare:$('#copyShareBtn'),aiBanner:$('#aiBanner'),aiAvatar:$('#aiAvatar'),aiStyle:$('#aiStyle'),aiName:$('#aiName'),aiQuote:$('#aiQuote')};
 
-  let ws;
-  let state = null;
-  let selectedSeat = null;
-  let reconnectTimer = null;
-  let heartbeatTimer = null;
-  let lastResultKey = null;
-  let audioCtx = null;
-  let resultTimers = [];
-  let connectionState = 'connecting';
+  const AI_PROFILES=[
+    {id:'rei',name:'レイ',style:'冷徹分析型',avatar:'🧠',colors:['#63d8ff','#6c56ff'],blurb:'履歴を読み、確率で詰める。'},
+    {id:'gou',name:'ゴウ',style:'強気ギャンブラー',avatar:'🔥',colors:['#ff8a45','#ff324f'],blurb:'高得点へ踏み込む攻撃型。'},
+    {id:'mika',name:'ミカ',style:'読心トリックスター',avatar:'🃏',colors:['#e56cff','#55d6ff'],blurb:'裏の裏を狙う変則型。'},
+    {id:'nagi',name:'ナギ',style:'慎重な守備型',avatar:'🧊',colors:['#88eeff','#6f91ff'],blurb:'危険を避けて堅実に拾う。'}
+  ];
+  let ws,state=null,selectedSeat=null,reconnectTimer=null,heartbeatTimer=null,lastResultKey=null,audioCtx=null,resultTimers=[],selectedAi='rei',difficulty='normal';
 
-  const storedName = localStorage.getItem('ec_name');
-  if (storedName) nameInput.value = storedName;
-  loadInviteCode();
-  refreshResumeButton();
+  const savedName=localStorage.getItem('ec_name')||'';E.name.value=savedName;E.soloName.value=savedName;
+  renderAiRoster();loadInviteCode();refreshResumeButton();
 
-  function loadInviteCode() {
-    const room = new URLSearchParams(location.search).get('room');
-    if (/^\d{6}$/.test(room || '')) {
-      codeInput.value = room;
-      inviteHint.classList.remove('hidden');
-    }
-  }
+  function renderAiRoster(){E.aiRoster.innerHTML='';AI_PROFILES.forEach((p,i)=>{const b=document.createElement('button');b.className=`ai-choice ${i===0?'active':''}`;b.dataset.ai=p.id;b.style.setProperty('--avatar1',p.colors[0]);b.style.setProperty('--avatar2',p.colors[1]);b.innerHTML=`<span class="avatar-face">${p.avatar}</span><b>${p.name}</b><small>${p.style}</small><p>${p.blurb}</p>`;b.onclick=()=>{$$('.ai-choice').forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedAi=p.id;playCue('select')};E.aiRoster.appendChild(b)})}
+  function switchTab(name){$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`${name}Tab`));window.scrollTo({top:0,behavior:'smooth'})}
+  function loadInviteCode(){const room=new URLSearchParams(location.search).get('room');if(/^\d{6}$/.test(room||'')){E.code.value=room;E.inviteHint.classList.remove('hidden');switchTab('online')}}
+  function wsUrl(){return `${location.protocol==='https:'?'wss':'ws'}://${location.host}`}
+  function setConnection(kind){E.connectionBar.className=`connection-bar ${kind}`;const labels={connected:'CONNECTED',connecting:'CONNECTING',reconnecting:'RECONNECTING',offline:'OFFLINE'};E.connectionText.textContent=labels[kind]||kind.toUpperCase()}
+  function startHeartbeat(){clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>send({type:'ping'}),20000)}
+  function connect(onOpen){if(ws&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(ws.readyState)){if(ws.readyState===WebSocket.OPEN)onOpen?.();else ws.addEventListener('open',()=>onOpen?.(),{once:true});return}setConnection(state?'reconnecting':'connecting');ws=new WebSocket(wsUrl());ws.addEventListener('open',()=>{clearTimeout(reconnectTimer);setConnection('connected');startHeartbeat();onOpen?.()});ws.addEventListener('message',onMessage);ws.addEventListener('close',()=>{clearInterval(heartbeatTimer);setConnection('offline');if(state&&state.phase!=='game_over'){showToast('通信が切れました。再接続しています…');setConnection('reconnecting');reconnectTimer=setTimeout(resumeSession,1200)}});ws.addEventListener('error',()=>setConnection('offline'))}
+  function send(payload){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(payload))}
+  function onMessage(e){const msg=JSON.parse(e.data);if(msg.type==='session'){localStorage.setItem('ec_session',JSON.stringify({code:msg.roomCode,token:msg.playerToken}));refreshResumeButton()}if(msg.type==='state'){const prev=state;state=msg.state;selectedSeat=null;E.confirmOverlay.classList.add('hidden');showGame();render(prev)}if(msg.type==='error')showToast(msg.message);if(msg.type==='left')backToLobby()}
+  function cleanAndSaveName(input){const name=(input.value.trim()||'PLAYER').slice(0,16);localStorage.setItem('ec_name',name);E.name.value=name;E.soloName.value=name;return name}
+  function createRoom(){unlockAudio();const name=cleanAndSaveName(E.name);connect(()=>send({type:'create_room',name}))}
+  function joinRoom(){unlockAudio();const name=cleanAndSaveName(E.name),code=E.code.value.replace(/\D/g,'');if(code.length!==6)return showToast('6桁のルームIDを入力してください');connect(()=>send({type:'join_room',name,code}))}
+  function createAiRoom(){unlockAudio();const name=cleanAndSaveName(E.soloName);connect(()=>send({type:'create_ai_room',name,aiId:selectedAi,difficulty}))}
+  function getSession(){try{return JSON.parse(localStorage.getItem('ec_session')||'null')}catch{return null}}
+  function refreshResumeButton(){E.resume.classList.toggle('hidden',!getSession())}
+  function resumeSession(){const s=getSession();if(!s)return;connect(()=>send({type:'resume',code:s.code,token:s.token}))}
+  function showGame(){E.lobby.classList.remove('active');E.game.classList.add('active')}
+  function backToLobby(){state=null;selectedSeat=null;lastResultKey=null;resultTimers.forEach(clearTimeout);resultTimers=[];E.game.classList.remove('active');E.lobby.classList.add('active');E.resultOverlay.classList.add('hidden');E.gameOver.classList.add('hidden');E.confirmOverlay.classList.add('hidden');localStorage.removeItem('ec_session');refreshResumeButton();history.replaceState({},'',location.pathname);switchTab('home')}
 
-  function wsUrl() {
-    return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
-  }
+  function render(previous){if(!state)return;E.roomCode.textContent=state.mode==='ai'?(state.ai?.difficulty||'AI').toUpperCase():state.code;E.roomLabel.textContent=state.mode==='ai'?'SOLO':'ROOM';E.share.classList.toggle('hidden',state.mode==='ai');E.turnNo.textContent=state.turnNumber||'-';E.gameNo.textContent=state.gameNumber||'-';renderPlayers(previous);renderAiBanner();renderArena();renderStatus();renderConnection();if(state.phase!=='result'){E.resultOverlay.classList.add('hidden');resultTimers.forEach(clearTimeout);resultTimers=[]}if(state.lastResult&&state.phase==='result'){const k=`${state.gameNumber}:${state.turnNumber}:${state.lastResult.playerIndex}:${state.lastResult.seat}`;if(k!==lastResultKey){lastResultKey=k;showResult(state.lastResult)}}if(state.phase==='game_over')renderGameOver();else E.gameOver.classList.add('hidden');if(previous&&previous.turnNumber!==state.turnNumber&&state.phase==='set_trap')playCue('turn')}
+  function renderPlayers(previous){[0,1].forEach(i=>{const p=state.players[i];$(`#p${i}name`).textContent=p?.name||'WAITING';const el=$(`#p${i}score`),old=previous?.players?.[i]?.score??p?.score??0;animateNumber(el,old,p?.score||0);$(`#p${i}shock`).textContent=`⚡ ${p?.shocks||0} / 3`;$(`#p${i}wins`).textContent=`${p?.wins||0} WIN`;$(`#p${i}card`).classList.toggle('active-player',i===state.setterIndex||i===state.sitterIndex)});}
+  function renderAiBanner(){if(state.mode!=='ai'||!state.ai){E.aiBanner.classList.add('hidden');return}E.aiBanner.classList.remove('hidden');E.aiAvatar.textContent=state.ai.avatar;E.aiAvatar.style.setProperty('--avatar1',state.ai.colors[0]);E.aiAvatar.style.setProperty('--avatar2',state.ai.colors[1]);E.aiStyle.textContent=`${state.ai.style} / ${state.ai.difficulty.toUpperCase()}`;E.aiName.textContent=state.ai.name;E.aiQuote.textContent=aiQuote()}
+  function aiQuote(){if(!state?.ai)return'';const id=state.ai.id,myTurn=(state.setterIndex===1||state.sitterIndex===1);const q={rei:{wait:['データは十分。次を読む。','その選択、記録した。'],go:['確率の高い方へ行く。','癖は数字に出る。']},gou:{wait:['もっとデカい数字を狙えよ。','ビビったら負けだ。'],go:['12が残ってるなら行くぜ。','勝負は踏み込んでこそだ。']},mika:{wait:['次は同じと思う？','読んだつもりが一番危ないよ。'],go:['さて、どこだと思う？','裏の裏まで見てみようか。']},nagi:{wait:['焦らなくていい。','危険な勝負は避けるよ。'],go:['一つずつ確実に。','無理はしない。']}};const arr=q[id]?.[myTurn?'go':'wait']||['……'];return arr[(state.turnNumber+state.gameNumber)%arr.length]}
+  function renderConnection(){if(state.mode==='ai'){E.opponentConnection.textContent=' / AI LOCAL LOGIC';return}const opp=state.players[1-state.you];E.opponentConnection.textContent=opp?(opp.connected?' / OPPONENT ONLINE':' / OPPONENT OFFLINE'):' / WAITING'}
+  function renderArena(){E.chairGrid.querySelectorAll('.chair-slot').forEach(x=>x.remove());for(let n=1;n<=12;n++){const slot=document.createElement('div');slot.className='chair-slot';slot.style.setProperty('--angle',`${(n-1)*30}deg`);const available=state.remainingSeats.includes(n),canChoose=(state.canSetTrap||state.canChooseSeat)&&available;slot.innerHTML=`<button class="chair ${available?'available':'removed'} ${selectedSeat===n?'selected':''}" data-seat="${n}" ${canChoose?'':'disabled'}><span class="chair-back"></span><span class="chair-seat"></span><span class="num">${n}</span></button>`;const b=slot.querySelector('button');if(canChoose)b.onclick=()=>selectSeat(n);E.chairGrid.appendChild(slot)}}
+  function renderStatus(){const me=state.you,waiting=state.mode==='human'&&!state.players[1];E.thinking.classList.add('hidden');E.confirm.disabled=!selectedSeat;if(waiting){E.statusTitle.textContent='対戦相手を待っています';E.statusSub.textContent=`ROOM ${state.code} を招待してください`;E.selection.textContent='右上の ↗ から招待リンクを送れます';return}if(state.phase==='set_trap'){if(state.setterIndex===me){E.statusTitle.textContent='電気イスを仕掛けろ';E.statusSub.textContent='相手に座らせたい1脚を選択';E.selection.textContent=selectedSeat?`${selectedSeat}番に電気を仕掛けます`:'仕掛けるイスを選択してください'}else{E.statusTitle.textContent=state.mode==='ai'?'AIが仕掛けています':'相手が仕掛けています';E.statusSub.textContent='電気イスの位置はあなたには送信されません';E.thinking.classList.remove('hidden');E.selection.textContent='相手の決定を待っています…'}}else if(state.phase==='choose_seat'){if(state.sitterIndex===me){E.statusTitle.textContent='座るイスを選べ';E.statusSub.textContent='電気イスを読み切れ';E.selection.textContent=selectedSeat?`${selectedSeat}番に着席します`:'着席するイスを選択してください'}else{E.statusTitle.textContent=state.mode==='ai'?'AIが着席を考えています':'相手が着席を考えています';E.statusSub.textContent='選択結果を待っています';E.thinking.classList.remove('hidden');E.selection.textContent='相手の選択を待っています…'}}else if(state.phase==='result'){E.statusTitle.textContent='RESULT';E.statusSub.textContent='判定中';E.selection.textContent='次のターンを待っています…'}else if(state.phase==='game_over'){E.statusTitle.textContent='GAME OVER';E.statusSub.textContent='勝敗決定';E.selection.textContent='対戦終了'}E.confirm.disabled=!(selectedSeat&&(state.canSetTrap||state.canChooseSeat))}
+  function selectSeat(n){selectedSeat=n;playCue('select');renderArena();renderStatus()}
+  function openConfirm(){if(!selectedSeat)return;E.confirmSeat.textContent=selectedSeat;if(state.canSetTrap){E.confirmTitle.textContent='このイスに仕掛ける？';E.confirmDetail.textContent='相手には番号は通知されません';$('#confirmKicker').textContent='SET ELECTRIC CHAIR'}else{E.confirmTitle.textContent='このイスに座る？';E.confirmDetail.textContent='決定後は変更できません';$('#confirmKicker').textContent='TAKE A SEAT'}E.confirmOverlay.classList.remove('hidden');playCue('confirm')}
+  function finalChoice(){if(!selectedSeat)return;playCue('lock');send({type:state.canSetTrap?'set_trap':'choose_seat',seat:selectedSeat});E.confirmOverlay.classList.add('hidden')}
 
-  function setConnection(kind) {
-    connectionState = kind;
-    connectionBar.className = `connection-bar ${kind}`;
-    const labels = { connected: 'CONNECTED', connecting: 'CONNECTING', reconnecting: 'RECONNECTING', offline: 'OFFLINE' };
-    connectionText.textContent = labels[kind] || kind.toUpperCase();
-  }
+  function showResult(r){resultTimers.forEach(clearTimeout);resultTimers=[];E.resultOverlay.className='overlay result-overlay reveal-1';E.resultKicker.textContent='JUDGEMENT';E.resultSeat.textContent=r.seat;E.resultTitle.textContent='CHECK';E.resultDetail.textContent='判定中…';E.resultScore.textContent='';E.trapReveal.classList.add('hidden');E.trapRevealRing.innerHTML='';playCue('suspense');resultTimers.push(setTimeout(()=>{E.resultOverlay.classList.add('reveal-2');if(r.shocked){E.resultOverlay.classList.add('shock');E.resultKicker.textContent='HIGH VOLTAGE';E.resultTitle.textContent='ELECTRIC!';E.resultDetail.textContent=`${r.pointsBefore} PT → 0 PT / 感電 ${state.players[r.playerIndex].shocks}回目`;E.resultScore.textContent='0 PT';playCue('shock');try{navigator.vibrate?.([90,40,180,35,280])}catch{}}else{E.resultOverlay.classList.add('safe');E.resultKicker.textContent='SAFE';E.resultTitle.textContent='SAFE!';E.resultDetail.textContent=`${r.seat}番のイスを獲得`;E.resultScore.textContent=`+${r.gained} PT`;playCue('safe');resultTimers.push(setTimeout(()=>showTrapReveal(r),1200))}},900))}
+  function showTrapReveal(r){E.resultOverlay.classList.add('trap-stage');E.resultKicker.textContent='TRAP REVEAL';E.resultSeat.textContent=r.trapSeat;E.resultTitle.textContent=`電気イスは ${r.trapSeat}番`;E.resultDetail.textContent=`あなたが座ったのは ${r.seat}番 — 回避成功`;E.trapReveal.classList.remove('hidden');E.trapRevealRing.innerHTML='';for(let n=1;n<=12;n++){const s=document.createElement('span');s.className=`trap-mini-seat ${n===r.trapSeat?'hot':''} ${n===r.seat?'sat':''}`;s.style.setProperty('--i',n-1);s.textContent=n;E.trapRevealRing.appendChild(s)}playCue('reveal');try{navigator.vibrate?.([35,30,60])}catch{}}
+  function renderGameOver(){E.gameOver.classList.remove('hidden');const w=state.winnerIndex==null?null:state.players[state.winnerIndex];E.winnerTitle.textContent=w?`${w.name} WIN`:'DRAW';const reasons={forty_points:'40ポイント到達',three_shocks:'3回感電',one_seat_left:'イスが残り1脚',opponent_left:'相手プレイヤーが退出',disconnect_timeout:'相手が再接続しませんでした'};E.winnerDetail.textContent=`${reasons[state.endReason]||'対戦終了'} / ${state.players[0].score} - ${state.players[1].score} PT`;E.seriesScore.textContent=`SERIES  ${state.players[0].wins} - ${state.players[1].wins}`;if(state.mode==='ai'){E.restart.disabled=false;E.restart.textContent='同じAIと再戦';E.rematchStatus.textContent=`${state.ai.name} / ${state.ai.difficulty.toUpperCase()}`;return}const mine=Boolean(state.rematchVotes?.[state.you]),theirs=Boolean(state.rematchVotes?.[1-state.you]);E.restart.disabled=mine;E.restart.textContent=mine?'再戦希望を送信済み':'再戦を希望する';E.rematchStatus.textContent=mine&&theirs?'両者同意 — 再戦を開始します':theirs?'相手が再戦を希望しています':mine?'相手の同意を待っています…':'両者が希望すると同じルームで再戦します'}
+  function animateNumber(el,from,to){if(from===to){el.textContent=to;return}const start=performance.now(),d=450;const step=now=>{const t=Math.min(1,(now-start)/d);el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-t,3)));if(t<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
 
-  function startHeartbeat() {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = setInterval(() => send({ type: 'ping' }), 20000);
-  }
+  function inviteUrl(){const url=new URL(location.href);url.search='';url.searchParams.set('room',state.code);return url.toString()}
+  function openShare(){if(!state||state.mode==='ai')return;const url=inviteUrl();E.shareUrl.textContent=url;E.shareOverlay.classList.remove('hidden')}
+  async function nativeShare(){const url=inviteUrl(),text=`電撃イスDUEL / ROOM ${state.code}`;try{if(navigator.share)await navigator.share({title:'ELECTRIC CHAIR DUEL',text,url});else{await navigator.clipboard.writeText(url);showToast('招待リンクをコピーしました')}}catch(e){if(e?.name!=='AbortError')showToast('共有できませんでした')}}
+  function socialShare(kind){const url=encodeURIComponent(inviteUrl()),text=encodeURIComponent(`電撃イスDUELで対戦しよう！ ROOM ${state.code}`);if(kind==='line')window.open(`https://social-plugins.line.me/lineit/share?url=${url}`,'_blank','noopener');if(kind==='x')window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`,'_blank','noopener');if(kind==='mail')location.href=`mailto:?subject=${encodeURIComponent('電撃イスDUEL 対戦招待')}&body=${text}%0A${url}`}
+  async function copyShare(){try{await navigator.clipboard.writeText(inviteUrl());showToast('招待リンクをコピーしました');E.shareOverlay.classList.add('hidden')}catch{showToast(inviteUrl())}}
 
-  function connect(onOpen) {
-    if (ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(ws.readyState)) {
-      if (ws.readyState === WebSocket.OPEN) onOpen?.();
-      else ws.addEventListener('open', () => onOpen?.(), { once: true });
-      return;
-    }
-    setConnection(state ? 'reconnecting' : 'connecting');
-    ws = new WebSocket(wsUrl());
-    ws.addEventListener('open', () => {
-      clearTimeout(reconnectTimer);
-      setConnection('connected');
-      startHeartbeat();
-      onOpen?.();
-    });
-    ws.addEventListener('message', onMessage);
-    ws.addEventListener('close', () => {
-      clearInterval(heartbeatTimer);
-      setConnection('offline');
-      if (state && state.phase !== 'game_over') {
-        showToast('通信が切れました。再接続しています…');
-        setConnection('reconnecting');
-        reconnectTimer = setTimeout(resumeSession, 1200);
-      }
-    });
-    ws.addEventListener('error', () => setConnection('offline'));
-  }
+  function unlockAudio(){try{audioCtx||=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}catch{}}
+  function tone(freq,duration,type='square',gain=.035,delay=0){if(!audioCtx)return;const t=audioCtx.currentTime+delay,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+duration+.03)}
+  function playCue(k){if(!audioCtx)return;if(k==='select')tone(520,.07,'square',.025);if(k==='confirm'){tone(330,.08,'square',.025);tone(440,.09,'square',.025,.08)}if(k==='lock')tone(190,.16,'sawtooth',.035);if(k==='turn'){tone(260,.09,'square',.02);tone(390,.09,'square',.02,.12)}if(k==='suspense'){tone(110,.35,'sawtooth',.02);tone(105,.35,'sawtooth',.02,.45)}if(k==='safe'){tone(523,.12,'triangle',.04);tone(659,.13,'triangle',.04,.12);tone(784,.24,'triangle',.05,.25)}if(k==='reveal'){tone(220,.08,'sawtooth',.025);tone(440,.1,'square',.03,.08);tone(880,.18,'triangle',.04,.18)}if(k==='shock')[95,150,70,210,55].forEach((f,i)=>tone(f,.18,i%2?'square':'sawtooth',.07,i*.055))}
+  function showToast(text){E.toast.textContent=text;E.toast.classList.remove('hidden');clearTimeout(showToast.t);showToast.t=setTimeout(()=>E.toast.classList.add('hidden'),2400)}
 
-  function send(payload) {
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
-  }
-
-  function onMessage(e) {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'session') {
-      localStorage.setItem('ec_session', JSON.stringify({ code: msg.roomCode, token: msg.playerToken }));
-      refreshResumeButton();
-    }
-    if (msg.type === 'state') {
-      const previous = state;
-      state = msg.state;
-      selectedSeat = null;
-      confirmOverlay.classList.add('hidden');
-      showGame();
-      render(previous);
-    }
-    if (msg.type === 'error') showToast(msg.message);
-    if (msg.type === 'left') backToLobby();
-  }
-
-  function createRoom() {
-    unlockAudio();
-    connect(() => send({ type: 'create_room', name: getName() }));
-  }
-
-  function joinRoom() {
-    unlockAudio();
-    const code = codeInput.value.replace(/\D/g, '');
-    if (code.length !== 6) return showToast('6桁のルームIDを入力してください');
-    connect(() => send({ type: 'join_room', code, name: getName() }));
-  }
-
-  function resumeSession() {
-    const session = getSession();
-    if (!session) return;
-    connect(() => send({ type: 'resume', ...session }));
-  }
-
-  function getName() {
-    const name = (nameInput.value.trim() || 'PLAYER').slice(0, 16);
-    localStorage.setItem('ec_name', name);
-    return name;
-  }
-
-  function getSession() {
-    try { return JSON.parse(localStorage.getItem('ec_session')); }
-    catch { return null; }
-  }
-
-  function refreshResumeButton() {
-    resumeBtn.classList.toggle('hidden', !getSession());
-  }
-
-  function showGame() {
-    lobby.classList.remove('active');
-    game.classList.add('active');
-  }
-
-  function clearResultTimers() {
-    resultTimers.forEach(clearTimeout);
-    resultTimers = [];
-  }
-
-  function backToLobby() {
-    clearResultTimers();
-    state = null;
-    selectedSeat = null;
-    localStorage.removeItem('ec_session');
-    game.classList.remove('active');
-    lobby.classList.add('active');
-    resultOverlay.classList.add('hidden');
-    gameOverOverlay.classList.add('hidden');
-    confirmOverlay.classList.add('hidden');
-    refreshResumeButton();
-    history.replaceState({}, '', location.pathname);
-  }
-
-  function render(previous) {
-    if (!state) return;
-    roomCode.textContent = state.code;
-    turnNo.textContent = state.turnNumber || '—';
-    gameNo.textContent = state.gameNumber || 1;
-
-    state.players.forEach((p, i) => {
-      const card = $(`#p${i}card`);
-      $(`#p${i}name`).textContent = p?.name || 'WAITING';
-      animateNumber($(`#p${i}score`), Number($(`#p${i}score`).textContent) || 0, p?.score ?? 0);
-      $(`#p${i}shock`).textContent = `⚡ ${p?.shocks ?? 0} / 3`;
-      $(`#p${i}wins`).textContent = `${p?.wins ?? 0} WIN`;
-      card.classList.toggle('you', state.you === i);
-      card.classList.toggle('active-turn', (state.phase === 'set_trap' && state.setterIndex === i) || (state.phase === 'choose_seat' && state.sitterIndex === i));
-      card.classList.toggle('offline', p && !p.connected);
-    });
-
-    const opponent = state.players[1 - state.you];
-    opponentConnection.textContent = opponent ? (opponent.connected ? '相手: ONLINE' : '相手: DISCONNECTED') : '相手待ち';
-    opponentConnection.classList.toggle('bad', Boolean(opponent && !opponent.connected));
-
-    renderStatus(previous);
-    renderChairs();
-    renderResult();
-    renderGameOver();
-  }
-
-  function renderStatus(previous) {
-    const setter = state.players[state.setterIndex];
-    const sitter = state.players[state.sitterIndex];
-    thinkingDots.classList.add('hidden');
-
-    if (state.phase === 'waiting') {
-      statusTitle.textContent = '対戦相手を待っています';
-      statusSub.textContent = '右上の共有ボタンから招待リンクを送れます';
-      thinkingDots.classList.remove('hidden');
-    } else if (state.phase === 'set_trap') {
-      if (state.canSetTrap) {
-        statusTitle.textContent = '電気イスを仕掛けろ';
-        statusSub.textContent = `${sitter?.name} が座りそうなイスを1脚選択`;
-      } else {
-        statusTitle.textContent = `${setter?.name} が仕掛け中…`;
-        statusSub.textContent = '電気イスの番号はあなたの端末へ送られません';
-        thinkingDots.classList.remove('hidden');
-      }
-    } else if (state.phase === 'choose_seat') {
-      if (state.canChooseSeat) {
-        statusTitle.textContent = '座るイスを選べ';
-        statusSub.textContent = '相手の読みを外してポイントを奪え';
-      } else {
-        statusTitle.textContent = `${sitter?.name} が着席を選択中…`;
-        statusSub.textContent = '決定されるまで待機してください';
-        thinkingDots.classList.remove('hidden');
-      }
-    } else if (state.phase === 'result') {
-      statusTitle.textContent = '判定';
-      statusSub.textContent = '結果を確認中…';
-    } else if (state.phase === 'game_over') {
-      statusTitle.textContent = 'GAME OVER';
-      statusSub.textContent = '勝敗が決まりました';
-    }
-
-    const actionable = state.canSetTrap || state.canChooseSeat;
-    confirmBtn.classList.toggle('danger', state.canSetTrap);
-    confirmBtn.textContent = state.canSetTrap ? '電気イスを決定' : '着席する';
-    confirmBtn.disabled = !actionable || selectedSeat == null;
-    selectionText.textContent = selectedSeat == null
-      ? (actionable ? '円周上のイスを選択してください' : '相手の操作を待っています')
-      : `${selectedSeat}番を選択中 — 決定前なら変更できます`;
-
-    if (previous && previous.phase !== state.phase && ['set_trap', 'choose_seat'].includes(state.phase)) playCue('turn');
-  }
-
-  function renderChairs() {
-    chairGrid.querySelectorAll('.chair-slot').forEach(el => el.remove());
-    const actionable = state.canSetTrap || state.canChooseSeat;
-    for (let n = 1; n <= 12; n++) {
-      const available = state.remainingSeats.includes(n);
-      const slot = document.createElement('div');
-      slot.className = 'chair-slot';
-      slot.style.setProperty('--angle', `${(n - 1) * 30}deg`);
-      const b = document.createElement('button');
-      b.className = `chair ${available ? 'available' : 'removed'} ${selectedSeat === n ? 'selected' : ''}`;
-      b.disabled = !available || !actionable;
-      b.setAttribute('aria-label', `${n}番のイス`);
-      b.innerHTML = `<span class="chair-back"></span><span class="chair-seat"></span><span class="num">${n}</span>`;
-      b.addEventListener('click', () => {
-        unlockAudio();
-        playCue('select');
-        selectedSeat = n;
-        renderStatus();
-        renderChairs();
-      });
-      slot.appendChild(b);
-      chairGrid.appendChild(slot);
-    }
-  }
-
-  function openConfirm() {
-    if (selectedSeat == null || !state) return;
-    unlockAudio();
-    confirmSeat.textContent = selectedSeat;
-    if (state.canSetTrap) {
-      confirmTitle.textContent = `${selectedSeat}番に電気を仕掛ける？`;
-      confirmDetail.textContent = '決定後は相手が着席するまで変更できません';
-      finalChoiceBtn.textContent = '仕掛ける';
-      finalChoiceBtn.classList.add('danger');
-    } else {
-      confirmTitle.textContent = `${selectedSeat}番に座る？`;
-      confirmDetail.textContent = '決定するとすぐ判定されます';
-      finalChoiceBtn.textContent = '座る';
-      finalChoiceBtn.classList.remove('danger');
-    }
-    confirmOverlay.classList.remove('hidden');
-    playCue('confirm');
-  }
-
-  function finalChoice() {
-    if (selectedSeat == null || !state) return;
-    const seat = selectedSeat;
-    confirmOverlay.classList.add('hidden');
-    confirmBtn.disabled = true;
-    playCue('lock');
-    if (state.canSetTrap) send({ type: 'set_trap', seat });
-    else if (state.canChooseSeat) send({ type: 'choose_seat', seat });
-  }
-
-  function renderResult() {
-    const r = state.lastResult;
-    if (!r || state.phase !== 'result') {
-      if (state.phase !== 'game_over') resultOverlay.classList.add('hidden');
-      return;
-    }
-    const key = `${state.gameNumber}-${state.turnNumber}-${r.playerIndex}-${r.seat}-${r.shocked}`;
-    if (lastResultKey === key) return;
-    lastResultKey = key;
-    clearResultTimers();
-
-    resultOverlay.className = `overlay result-overlay ${r.shocked ? 'shock' : 'safe'} reveal-1`;
-    resultKicker.textContent = 'JUDGEMENT';
-    resultSeat.textContent = r.seat;
-    resultTitle.textContent = '判定…';
-    resultDetail.textContent = `${state.players[r.playerIndex]?.name || 'PLAYER'} が ${r.seat}番に着席`;
-    resultScore.textContent = '';
-    trapReveal.classList.add('hidden');
-    trapRevealRing.innerHTML = '';
-    playCue('suspense');
-
-    resultTimers.push(setTimeout(() => {
-      resultOverlay.classList.remove('reveal-1');
-      resultOverlay.classList.add('reveal-2');
-      if (r.shocked) {
-        resultTitle.textContent = 'ELECTRIC!';
-        resultDetail.textContent = `${r.seat}番は電気イス`;
-        resultScore.textContent = `${r.pointsBefore} PT → 0 PT`;
-        playCue('shock');
-        if (navigator.vibrate) navigator.vibrate([80, 40, 180, 50, 280]);
-      } else {
-        resultTitle.textContent = 'SAFE';
-        resultDetail.textContent = `${r.seat}番を獲得`;
-        resultScore.textContent = `+${r.gained} PT`;
-        playCue('safe');
-        if (navigator.vibrate) navigator.vibrate(50);
-      }
-    }, 1100));
-
-    if (!r.shocked && r.trapSeat) {
-      resultTimers.push(setTimeout(() => {
-        resultOverlay.classList.add('reveal-3', 'trap-stage');
-        resultKicker.textContent = 'TRAP REVEAL';
-        resultSeat.textContent = r.trapSeat;
-        resultTitle.textContent = `電気イスは ${r.trapSeat}番`;
-        resultDetail.textContent = 'ここに仕掛けられていました';
-        resultScore.textContent = '';
-        trapRevealRing.innerHTML = '';
-        for (let seat = 1; seat <= 12; seat++) {
-          const dot = document.createElement('div');
-          dot.className = `trap-mini-seat${seat === r.trapSeat ? ' hot' : ''}${seat === r.seat ? ' sat' : ''}`;
-          dot.style.setProperty('--i', seat - 1);
-          dot.innerHTML = `<span>${seat}</span>`;
-          trapRevealRing.appendChild(dot);
-        }
-        trapReveal.classList.remove('hidden');
-        playCue('reveal');
-        if (navigator.vibrate) navigator.vibrate([35, 40, 90]);
-      }, 2200));
-    } else {
-      resultTimers.push(setTimeout(() => resultOverlay.classList.add('reveal-3'), 2350));
-    }
-  }
-
-  function renderGameOver() {
-    if (state.phase !== 'game_over') {
-      gameOverOverlay.classList.add('hidden');
-      return;
-    }
-    clearResultTimers();
-    resultOverlay.classList.add('hidden');
-    gameOverOverlay.classList.remove('hidden');
-    const winner = state.winnerIndex == null ? null : state.players[state.winnerIndex];
-    winnerTitle.textContent = winner ? `${winner.name} WIN` : 'DRAW';
-    const reasons = {
-      forty_points: '40ポイント到達',
-      three_shocks: '3回感電',
-      one_seat_left: 'イスが残り1脚',
-      opponent_left: '相手プレイヤーが退出',
-      disconnect_timeout: '相手が再接続しませんでした'
-    };
-    winnerDetail.textContent = `${reasons[state.endReason] || '対戦終了'} / ${state.players[0].score} - ${state.players[1].score} PT`;
-    seriesScore.textContent = `SERIES  ${state.players[0].wins} - ${state.players[1].wins}`;
-    const mine = Boolean(state.rematchVotes?.[state.you]);
-    const theirs = Boolean(state.rematchVotes?.[1 - state.you]);
-    restartBtn.disabled = mine;
-    restartBtn.textContent = mine ? '再戦希望を送信済み' : '再戦を希望する';
-    rematchStatus.textContent = mine && theirs ? '両者同意 — 再戦を開始します' : theirs ? '相手が再戦を希望しています' : mine ? '相手の同意を待っています…' : '両者が希望すると同じルームで再戦します';
-  }
-
-  function animateNumber(el, from, to) {
-    if (from === to) { el.textContent = to; return; }
-    const start = performance.now();
-    const duration = 450;
-    const step = (now) => {
-      const t = Math.min(1, (now - start) / duration);
-      el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - t, 3)));
-      if (t < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
-
-  function inviteUrl() {
-    const url = new URL(location.href);
-    url.search = '';
-    url.searchParams.set('room', state.code);
-    return url.toString();
-  }
-
-  async function shareInvite() {
-    if (!state) return;
-    const url = inviteUrl();
-    const text = `ELECTRIC CHAIR DUEL / ROOM ${state.code}`;
-    try {
-      if (navigator.share) await navigator.share({ title: 'ELECTRIC CHAIR DUEL', text, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        showToast('招待リンクをコピーしました');
-      }
-    } catch (e) {
-      if (e?.name !== 'AbortError') showToast(url);
-    }
-  }
-
-  function unlockAudio() {
-    try {
-      audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    } catch {}
-  }
-
-  function tone(freq, duration, type = 'square', gain = 0.035, delay = 0) {
-    if (!audioCtx) return;
-    const t = audioCtx.currentTime + delay;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(t);
-    o.stop(t + duration + 0.03);
-  }
-
-  function playCue(kind) {
-    if (!audioCtx) return;
-    if (kind === 'select') tone(520, .07, 'square', .025);
-    if (kind === 'confirm') { tone(330, .08, 'square', .025); tone(440, .09, 'square', .025, .08); }
-    if (kind === 'lock') tone(190, .16, 'sawtooth', .035);
-    if (kind === 'turn') { tone(260, .09, 'square', .02); tone(390, .09, 'square', .02, .12); }
-    if (kind === 'suspense') { tone(110, .35, 'sawtooth', .02); tone(105, .35, 'sawtooth', .02, .45); }
-    if (kind === 'safe') { tone(523, .12, 'triangle', .04); tone(659, .13, 'triangle', .04, .12); tone(784, .24, 'triangle', .05, .25); }
-    if (kind === 'reveal') { tone(220, .08, 'sawtooth', .025); tone(440, .1, 'square', .03, .08); tone(880, .18, 'triangle', .04, .18); }
-    if (kind === 'shock') {
-      [95, 150, 70, 210, 55].forEach((f, i) => tone(f, .18, i % 2 ? 'square' : 'sawtooth', .07, i * .055));
-    }
-  }
-
-  function showToast(text) {
-    toast.textContent = text;
-    toast.classList.remove('hidden');
-    clearTimeout(showToast.t);
-    showToast.t = setTimeout(() => toast.classList.add('hidden'), 2400);
-  }
-
-  createBtn.addEventListener('click', createRoom);
-  joinBtn.addEventListener('click', joinRoom);
-  resumeBtn.addEventListener('click', () => { unlockAudio(); resumeSession(); });
-  confirmBtn.addEventListener('click', openConfirm);
-  finalChoiceBtn.addEventListener('click', finalChoice);
-  cancelChoiceBtn.addEventListener('click', () => confirmOverlay.classList.add('hidden'));
-  codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6); });
-  shareBtn.addEventListener('click', shareInvite);
-  leaveBtn.addEventListener('click', () => {
-    if (!state || confirm('対戦を退出しますか？')) send({ type: 'leave' });
-  });
-  restartBtn.addEventListener('click', () => { unlockAudio(); send({ type: 'rematch_vote' }); });
-  backBtn.addEventListener('click', () => { send({ type: 'leave' }); setTimeout(backToLobby, 100); });
-
-  document.addEventListener('pointerdown', unlockAudio, { once: true });
-  if (getSession()) resumeSession();
+  $$('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));E.goOnline.onclick=()=>switchTab('online');E.goSolo.onclick=()=>switchTab('solo');E.rules.onclick=()=>E.rulesOverlay.classList.remove('hidden');$$('[data-close]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).classList.add('hidden'));$$('.difficulty').forEach(b=>b.onclick=()=>{$$('.difficulty').forEach(x=>x.classList.remove('active'));b.classList.add('active');difficulty=b.dataset.difficulty;playCue('select')});
+  E.create.onclick=createRoom;E.join.onclick=joinRoom;E.startAi.onclick=createAiRoom;E.resume.onclick=()=>{unlockAudio();resumeSession()};E.confirm.onclick=openConfirm;E.finalChoice.onclick=finalChoice;E.cancelChoice.onclick=()=>E.confirmOverlay.classList.add('hidden');E.code.addEventListener('input',()=>{E.code.value=E.code.value.replace(/\D/g,'').slice(0,6)});E.share.onclick=openShare;E.nativeShare.onclick=nativeShare;E.lineShare.onclick=()=>socialShare('line');E.xShare.onclick=()=>socialShare('x');E.mailShare.onclick=()=>socialShare('mail');E.copyShare.onclick=copyShare;E.leave.onclick=()=>{if(!state||confirm('対戦を退出しますか？'))send({type:'leave'})};E.restart.onclick=()=>{unlockAudio();send({type:'rematch_vote'})};E.back.onclick=()=>{send({type:'leave'});setTimeout(backToLobby,100)};document.addEventListener('pointerdown',unlockAudio,{once:true});if(getSession())resumeSession();
 })();
