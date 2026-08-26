@@ -33,3 +33,12 @@ test('PWA and Firebase Hosting security headers are configured', async () => {
   assert.match(firebase, /Content-Security-Policy/);
   assert.match(firebase, /Referrer-Policy/);
 });
+
+test('CI uses current action runtimes and Java 21 for Firebase emulators', async () => {
+  const workflow = await read('.github/workflows/ci.yml');
+  assert.match(workflow, /actions\/checkout@v6/);
+  assert.match(workflow, /actions\/setup-node@v6/);
+  assert.match(workflow, /pnpm\/action-setup@v6/);
+  assert.match(workflow, /actions\/setup-java@v5/);
+  assert.match(workflow, /java-version: 21/);
+});
