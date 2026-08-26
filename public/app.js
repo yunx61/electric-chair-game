@@ -37,7 +37,7 @@ const defaultProgress=()=>({soloWins:0,onlineWins:0,totalWins:0,streak:0,bestStr
 let progress=loadJSON('ec_progress',defaultProgress());
 let ws,state=null,selectedSeat=null,reconnectTimer=null,heartbeatTimer=null,lastResultKey=null,lastGameOverKey=null,audioCtx=null,ambientNodes=null,resultTimers=[],startTimer=null;
 let selectedAi='rei',difficulty='normal',currentChallenge=null,revealTrapSeat=null,revealSafeSeat=null,matchFlags={safe12:false};
-function syncVisualViewport(){const vv=window.visualViewport;const h=Math.round(vv?.height||window.innerHeight);const o=Math.round(vv?.offsetTop||0);document.documentElement.style.setProperty('--vvh',`${h}px`);document.documentElement.style.setProperty('--vvo',`${o}px`)}
+function syncVisualViewport(){const vv=window.visualViewport;const h=Math.round(vv?.height||window.innerHeight);const o=Math.round(vv?.offsetTop||0);document.documentElement.style.setProperty('--vvh',`${h}px`);document.documentElement.style.setProperty('--vvo',`${o}px`);requestAnimationFrame(layoutArena)}
 syncVisualViewport();window.addEventListener('resize',syncVisualViewport);window.visualViewport?.addEventListener('resize',syncVisualViewport);window.visualViewport?.addEventListener('scroll',syncVisualViewport);
 let bgmEnabled=localStorage.getItem('ec_bgm')!=='off',seEnabled=localStorage.getItem('ec_se')!=='off';
 
@@ -85,14 +85,14 @@ function createRoom(){currentChallenge=null;unlockAudio();connect(()=>send({type
 function joinRoom(){currentChallenge=null;unlockAudio();const code=E.code.value.replace(/\D/g,'');if(code.length!==6)return showToast('6桁のルームIDを入力してください');connect(()=>send({type:'join_room',name:cleanAndSaveName(E.name),code}))}
 function createAiRoom(){currentChallenge=null;if(!isUnlocked(aiById(selectedAi)))return showToast('そのAIは未解放です');unlockAudio();connect(()=>send({type:'create_ai_room',name:cleanAndSaveName(E.soloName),aiId:selectedAi,difficulty,challengeId:null}))}
 function startChallenge(id){const c=CHALLENGES.find(x=>x.id===id);if(!c)return;currentChallenge=c;selectedAi=c.ai;difficulty=c.difficulty;unlockAudio();const name=cleanAndSaveName(E.soloName);connect(()=>send({type:'create_ai_room',name,aiId:c.ai,difficulty:c.difficulty,challengeId:c.id}))}
-function showGame(){E.lobby.classList.remove('active');E.game.classList.add('active');startAmbient()}
+function showGame(){E.lobby.classList.remove('active');E.game.classList.add('active');startAmbient();requestAnimationFrame(layoutArena)}
 function backToLobby(){stopAmbient();sessionReady=false;state=null;selectedSeat=null;lastResultKey=null;lastGameOverKey=null;currentChallenge=null;resultTimers.forEach(clearTimeout);resultTimers=[];E.game.classList.remove('active');E.lobby.classList.add('active');E.resultOverlay.classList.add('hidden');E.gameOver.classList.add('hidden');E.confirmOverlay.classList.add('hidden');localStorage.removeItem('ec_session');refreshResumeButton();history.replaceState({},'',location.pathname);switchTab('home');renderProgressUI();renderAiRoster();renderChallenges()}
 
 function render(previous){
  if(!state)return;E.roomCode.textContent=state.mode==='ai'?(state.ai?.difficulty||'AI').toUpperCase():state.code;E.roomLabel.textContent=state.mode==='ai'?'SOLO':'ROOM';E.share.classList.toggle('hidden',state.mode==='ai');E.turnNo.textContent=state.turnNumber||'-';E.gameNo.textContent=state.gameNumber||'-';
  if(state.gameNumber>0&&(!previous||previous.gameNumber!==state.gameNumber)){matchFlags={safe12:false};showStartIntro()}
  if(state.phase!=='result'){revealTrapSeat=null;revealSafeSeat=null}
- renderPlayers(previous);renderAiBanner();renderChallengeBanner();renderGameContext();renderArena();renderStatus();renderConnection();
+ renderPlayers(previous);renderAiBanner();renderChallengeBanner();renderGameContext();renderArena();renderStatus();renderConnection();requestAnimationFrame(layoutArena);
  if(state.phase!=='result'){E.resultOverlay.classList.add('hidden');resultTimers.forEach(clearTimeout);resultTimers=[]}
  if(state.lastResult&&state.phase==='result'){const k=`${state.gameNumber}:${state.turnNumber}:${state.lastResult.playerIndex}:${state.lastResult.seat}`;if(k!==lastResultKey){lastResultKey=k;showResult(state.lastResult)}}
  if(state.phase==='game_over')renderGameOver();else E.gameOver.classList.add('hidden');
@@ -109,6 +109,21 @@ function renderGameContext(){
  E.gameContext.classList.toggle('hidden',!(visibleAi||visibleChallenge));
 }
 function renderConnection(){if(state.mode==='ai'){E.opponentConnection.textContent=' / AI';return}const opp=state.players[1-state.you];E.opponentConnection.textContent=opp?(opp.connected?' / OPPONENT ONLINE':' / OPPONENT OFFLINE'):' / WAITING'}
+
+function layoutArena(){
+ if(!E.game?.classList.contains('active')||!E.chairGrid)return;
+ const wrap=E.chairGrid.parentElement;if(!wrap)return;
+ const rect=wrap.getBoundingClientRect();
+ const width=Math.max(0,rect.width-2),height=Math.max(0,rect.height-2);
+ if(width<80||height<80)return;
+ const size=Math.floor(Math.min(width,height,390));
+ const chairW=Math.round(Math.max(34,Math.min(52,size*.135)));
+ const chairH=Math.round(chairW*1.16);
+ E.chairGrid.style.setProperty('--arena-size',`${size}px`);
+ E.chairGrid.style.setProperty('--chair-w',`${chairW}px`);
+ E.chairGrid.style.setProperty('--chair-h',`${chairH}px`);
+}
+
 function renderArena(){
  E.chairGrid.querySelectorAll('.chair-slot').forEach(x=>x.remove());
  for(let n=1;n<=12;n++){const b=document.createElement('button');const remaining=state.remainingSeats.includes(n);const theta=-90+(n%12)*30;const rad=theta*Math.PI/180;const radiusPct=41;const x=50+radiusPct*Math.cos(rad),y=50+radiusPct*Math.sin(rad);const rot=theta+90;b.className=`chair-slot ${remaining?'':(revealSafeSeat===n?'used-reveal':'removed')} ${selectedSeat===n?'selected':''} ${revealTrapSeat===n?'main-trap-hot':''} ${revealSafeSeat===n?'main-seat-safe':''}`;b.style.left=`${x}%`;b.style.top=`${y}%`;b.style.setProperty('--rot',`${rot}deg`);b.style.setProperty('--counter-rot',`${-rot}deg`);b.disabled=!remaining||!(state.canSetTrap||state.canChooseSeat);b.setAttribute('aria-label',`${n}番のイス`);b.innerHTML=`<span class="chair"><i class="chair-back"></i><i class="chair-seat"></i><b class="num">${n}</b></span>`;b.onclick=()=>selectSeat(n);E.chairGrid.appendChild(b)}

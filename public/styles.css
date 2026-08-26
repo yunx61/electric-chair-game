@@ -232,3 +232,96 @@ button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;curso
 @media (max-height:650px){
   .home-panel.active{grid-template-rows:minmax(190px,34dvh) minmax(128px,1fr) 38px 0!important}
 }
+
+/* ===== v3.5 typography + real-viewport hardening ===== */
+:root{--arena-size:300px;--chair-w:46px;--chair-h:54px}
+html,body{width:100%;height:100%;overflow:hidden}
+.app-shell{
+  position:fixed!important;left:50%!important;top:var(--vvo,0px)!important;transform:translateX(-50%)!important;
+  width:min(100%,520px)!important;height:var(--vvh,100dvh)!important;max-height:var(--vvh,100dvh)!important;
+  padding:calc(var(--safe-top) + 4px) 10px calc(var(--safe-bottom) + 5px)!important;overflow:hidden!important;
+}
+.screen,.tab-panel{min-width:0;min-height:0;overflow:hidden}
+
+/* HOME: predictable hierarchy, no forced dead space */
+#lobby.active{height:100%;grid-template-rows:42px minmax(0,1fr);gap:6px}
+.home-tabs{height:42px;min-width:0}
+.tab{font-size:clamp(9px,2.45vw,11px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-panel.active{
+  grid-template-rows:minmax(205px,33%) minmax(150px,1fr) 46px 14px!important;
+  gap:7px!important;align-content:stretch!important;overflow:hidden!important;
+}
+.hero-card{min-height:0!important;height:100%!important;grid-template-rows:auto auto minmax(55px,1fr) auto auto!important;padding:6px 9px!important}
+.storm-kicker{font-size:clamp(7px,2vw,9px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chrome-title span{font-size:clamp(32px,9.5vw,46px)!important}.chrome-title strong{font-size:clamp(22px,6.4vw,31px)!important}
+.chair-emblem{height:clamp(58px,9.5dvh,84px)!important}.metal-sub{font-size:clamp(13px,3.5vw,17px)!important}.lead{font-size:clamp(10px,2.65vw,12px)!important;line-height:1.25}
+.home-mode-grid{height:100%!important;min-height:0;grid-template-rows:minmax(68px,1fr) minmax(48px,.68fr)!important;gap:7px}
+.mode-card{min-width:0!important;min-height:0!important;height:100%!important;padding:8px!important;grid-template-columns:36px minmax(0,1fr)!important}
+.mode-card b,.mode-card small{min-width:0;overflow:hidden;text-overflow:ellipsis}.mode-card b{font-size:clamp(11px,3.15vw,14px)!important;white-space:nowrap}.mode-card small{font-size:clamp(8.5px,2.25vw,10.5px)!important;white-space:nowrap}
+.home-tools{min-width:0}.tool-btn{height:46px!important;min-width:0;padding:3px 1px}.tool-btn b,.tool-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tool-btn b{font-size:clamp(8.5px,2.35vw,10px)!important}.tool-btn span{font-size:clamp(7.5px,2vw,8.5px)!important}.footnote{font-size:7px!important;line-height:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Setup screens: all text has a bounded box */
+.setup-panel.active{height:100%;grid-template-rows:auto minmax(0,1fr);overflow:hidden}.section-head{min-width:0}.section-head h2,.section-head p,.section-head small{max-width:100%;overflow:hidden;text-overflow:ellipsis}.section-head h2{white-space:nowrap}.section-head p{white-space:nowrap}
+.setup-card{overflow:hidden!important;min-height:0}.setup-card label{line-height:1.2}.setup-card input{min-width:0;width:100%}.join-row{min-width:0}.join-row>*{min-width:0}
+.name-difficulty-row{min-width:0}.name-difficulty-row>div{min-width:0}.difficulty{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-roster{min-width:0;min-height:0;overflow:hidden}.ai-choice{min-width:0;min-height:0}.ai-choice .ai-info{min-width:0;overflow:hidden}.ai-choice b,.ai-choice small{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.challenge-grid{overflow:hidden}.challenge-card-item{min-width:0;overflow:hidden}.challenge-card-item h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.challenge-card-item p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.challenge-card-item .challenge-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* GAME: actual visible viewport, no text collision */
+#game.active{
+  height:100%!important;min-height:0!important;overflow:hidden!important;
+  grid-template-rows:34px 20px 80px auto minmax(0,1fr) 52px!important;
+  gap:4px!important;
+}
+.topbar,.connection-bar,.scoreboard,.game-context,.arena-wrap,.action-zone{min-width:0;min-height:0}
+.topbar{grid-template-columns:38px minmax(0,1fr) 38px}.room-badge{min-width:0;overflow:hidden;text-overflow:ellipsis}.room-badge span,.room-badge b{white-space:nowrap}.room-badge b{display:inline-block;max-width:52%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.connection-bar{min-width:0;overflow:hidden;white-space:nowrap}.connection-bar b,#opponentConnection{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scoreboard{height:80px!important;grid-template-columns:minmax(0,1fr) 46px minmax(0,1fr)!important;gap:5px!important}
+.player-card{
+  height:80px!important;min-width:0!important;overflow:hidden!important;padding:5px 8px!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:11px 18px minmax(28px,1fr) 12px!important;column-gap:5px!important;align-items:center!important;
+}
+.player-card small{grid-column:1/3;grid-row:1;font-size:8px!important;line-height:11px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card strong{grid-column:1/3;grid-row:2;font-size:clamp(13px,3.6vw,16px)!important;line-height:18px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.player-card div{grid-column:1/3;grid-row:3;min-width:0;display:flex!important;align-items:baseline!important;gap:3px!important;overflow:hidden}
+.player-card div span{font-size:clamp(27px,7.6vw,34px)!important;line-height:.95!important;white-space:nowrap}.player-card div em{font-size:9px!important;white-space:nowrap}
+.player-card p{grid-column:1;grid-row:4;position:static!important;margin:0!important;font-size:8px!important;line-height:12px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.player-card i{grid-column:2;grid-row:4;position:static!important;justify-self:end;font-size:7.5px!important;line-height:12px!important;white-space:nowrap!important;color:#9aa0a8!important}
+.turn-core{min-width:0;overflow:hidden}.turn-core small{font-size:7.5px;white-space:nowrap}.turn-core b{font-size:25px;line-height:1;white-space:nowrap}
+
+.game-context{display:grid!important;gap:3px!important;max-height:70px!important;overflow:hidden!important}.game-context.hidden{display:none!important}.game-context>.hidden{display:none!important}
+.ai-banner{height:43px!important;min-width:0;grid-template-columns:36px minmax(0,1fr)!important;gap:6px!important;padding:3px 6px!important;overflow:hidden!important}.ai-banner img{width:34px!important;height:34px!important}.ai-banner>div{min-width:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:16px 16px!important;column-gap:6px!important;align-content:center!important;overflow:hidden!important}.ai-banner small{grid-column:1;grid-row:1;font-size:8px!important;line-height:16px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}.ai-banner b{grid-column:2;grid-row:1;font-size:11px!important;line-height:16px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:70px}.ai-banner p{grid-column:1/3;grid-row:2;margin:0!important;font-size:8.5px!important;line-height:16px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.challenge-banner{height:24px!important;min-width:0!important;padding:0 7px!important;font-size:8.5px!important;line-height:24px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;display:block!important;text-align:center!important}.challenge-banner.hidden{display:none!important}
+
+.arena-wrap{grid-area:arena!important;min-height:0!important;overflow:hidden!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;transform:none!important}
+.arena{width:var(--arena-size)!important;height:var(--arena-size)!important;flex:0 0 var(--arena-size)!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;aspect-ratio:1/1!important}
+.chair-slot{width:var(--chair-w)!important;height:var(--chair-h)!important;margin:0!important;transform:translate(-50%,-50%) rotate(var(--rot,0deg))!important}
+.chair .num{font-size:clamp(10px,2.9vw,12px)!important;min-width:21px;height:21px;line-height:1;transform:translateX(-50%) rotate(var(--counter-rot,0deg))!important}
+.arena-center{width:44%!important;min-width:0!important;overflow:hidden!important}.game-label{font-size:8px!important;white-space:nowrap}.arena-center h2{font-size:clamp(13px,3.7vw,16px)!important;line-height:1.12!important;margin:5px 0 3px!important;overflow-wrap:anywhere!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}.arena-center p{font-size:clamp(8px,2.35vw,10px)!important;line-height:1.25!important;margin:0!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
+.action-zone{height:52px!important;grid-template-columns:minmax(0,1fr) 116px!important;gap:6px!important;padding:5px!important;overflow:hidden!important}.action-zone #selectionText{min-width:0!important;font-size:10px!important;line-height:1.25!important;padding:0 4px!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;overflow-wrap:anywhere!important}.action-zone .btn{width:116px!important;min-width:116px!important;height:40px!important;min-height:40px!important;font-size:13px!important;white-space:nowrap!important}
+
+/* Overlays: center in the REAL visual viewport and bound every text block */
+.overlay{top:var(--vvo,0px)!important;left:0!important;width:100vw!important;height:var(--vvh,100dvh)!important;padding:12px 14px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}.overlay.hidden{display:none!important}
+.modal-card,.confirm-card,.result-card,.start-card{min-width:0!important;max-width:430px!important;width:min(calc(100vw - 28px),430px)!important;max-height:calc(var(--vvh,100dvh) - 24px)!important;margin:0!important;overflow:auto!important}
+.confirm-card,.result-card,.start-card{overflow:hidden!important}.modal-card h2,.confirm-card h2,.result-card h2,.start-card h2{max-width:100%;overflow-wrap:anywhere}.confirm-card p,.result-card p{max-width:100%;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.result-card{padding:16px 14px!important}.result-card h2{font-size:clamp(32px,9.4vw,42px)!important;line-height:1!important;margin:4px 0!important}.result-seat{width:60px!important;height:60px!important;font-size:30px!important;margin:6px auto!important}.result-score{font-size:clamp(24px,7.7vw,32px)!important;line-height:1.05}.trap-reveal{margin-top:7px!important}.trap-reveal-label{font-size:9px!important;line-height:1.25}.trap-reveal-ring{width:min(42vw,155px)!important;height:min(42vw,155px)!important}.trap-mini-seat{width:25px!important;height:25px!important;font-size:9px!important;transform:translate(-50%,-50%)!important}
+.start-person b{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gameover-card h2{font-size:clamp(30px,9vw,40px)!important;overflow-wrap:anywhere}.series-score,.rematch-status,.challenge-result{max-width:100%;overflow-wrap:anywhere}
+
+/* Toast must never sit on top of the primary action row. */
+.toast{left:50%!important;bottom:auto!important;top:calc(var(--vvo,0px) + var(--vvh,100dvh) - var(--safe-bottom) - 112px)!important;max-width:min(86vw,360px)!important;font-size:10px!important;line-height:1.25!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;transform:translate(-50%,-100%)!important}
+
+/* Very short Safari visual viewport: trim secondary copy before shrinking essential controls. */
+@media (max-height:700px){
+  #game.active{grid-template-rows:32px 18px 72px auto minmax(0,1fr) 48px!important;gap:3px!important}
+  .scoreboard,.player-card{height:72px!important}.player-card{grid-template-rows:10px 16px minmax(25px,1fr) 11px!important;padding:4px 7px!important}.player-card strong{line-height:16px!important;font-size:13px!important}.player-card div span{font-size:27px!important}.player-card p,.player-card i{font-size:7px!important;line-height:11px!important}
+  .ai-banner{height:39px!important}.ai-banner img{width:32px!important;height:32px!important}.ai-banner>div{grid-template-rows:15px 14px!important}.ai-banner small,.ai-banner b{line-height:15px!important}.ai-banner p{line-height:14px!important;font-size:8px!important}.challenge-banner{height:22px!important;line-height:22px!important;font-size:8px!important}.game-context{max-height:64px!important}
+  .action-zone{height:48px!important}.action-zone .btn{height:38px!important;min-height:38px!important}.arena-center p{font-size:8px!important}
+  .home-panel.active{grid-template-rows:minmax(185px,31%) minmax(138px,1fr) 42px 12px!important;gap:5px!important}.chair-emblem{height:58px!important}.lead{font-size:9.5px!important}.mode-card{padding:6px!important}.home-tools .tool-btn{height:42px!important}
+}
+@media (max-height:600px){
+  .ai-banner p{display:none!important}.ai-banner>div{grid-template-rows:1fr!important}.ai-banner small,.ai-banner b{grid-row:1!important;align-self:center!important}.ai-banner{height:34px!important}.game-context{max-height:58px!important}.challenge-banner{height:20px!important;line-height:20px!important}
+  .player-card p{display:none!important}.player-card i{grid-column:1/3!important;justify-self:end!important}.scoreboard,.player-card{height:66px!important}#game.active{grid-template-rows:30px 18px 66px auto minmax(0,1fr) 46px!important}
+}
+/* CHALLENGE: use the whole panel instead of floating four cards in a large empty box. */
+.challenge-grid{align-content:stretch!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+.challenge-card-item{height:100%!important;min-height:0!important}
