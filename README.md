@@ -1,125 +1,112 @@
-# ELECTRIC CHAIR DUEL v3.6
+# 電撃イスDUEL v4.0
 
-スマートフォンのブラウザで遊ぶ、非公式ファンメイドの心理戦ゲームです。Node.js + WebSocketで、通信対戦とAI対戦に対応しています。
+12脚のイスを使った、スマートフォン向けターン制心理戦ゲームです。ONLINE対戦は Firebase Hosting / Anonymous Authentication / Realtime Database、AI・Challengeはブラウザ内だけで動作します。
 
-## v3.6 の主な変更
+## v4.0の設計
 
-- 対戦開始を止めていた未宣言の接続状態変数を修正。
-- 独自WebSocket実装を、保守されている `ws` パッケージへ置換。
-- WebSocketの受信サイズ、接続数、メッセージ数、ルーム作成数、参加試行数を制限。
-- 同一オリジン検証、heartbeat、切断エラー処理を追加。
-- 不正なURLでもサーバープロセスが終了しないようHTTP入力処理を修正。
-- CSP、クリックジャッキング防止、MIME sniffing防止などのセキュリティヘッダーを追加。
-- ルーム保存を非同期・デバウンス・原子的置換へ変更。再接続トークンはハッシュのみ保存。
-- ManifestとService Workerを追加し、ホーム画面へのインストールとアプリシェルのオフライン表示に対応。
-- ズーム許可、44px操作領域、フォーカス移動、Esc／Tab操作、ダイアログ属性を改善。
-- Node標準テストとGitHub Actionsを追加。
+- 常駐Node.jsサーバーと独自WebSocketを廃止
+- 罠番号をChoice前に送らないCommit-Reveal方式
+- 得点・感電・使用済みイス・勝敗をイベントログから毎回再計算
+- 128bitの招待IDをURLのcapabilityとして使用
+- Firebase Security Rulesはdefault deny、参加者限定、役割限定、create-only
+- Reveal猶予は90秒。Firebaseサーバー時刻をRulesで検証
+- Commit不一致など、サーバーだけで裁定できない不整合は「反則勝ち」ではなく「対戦無効」
+- AI、Challenge、実績、履歴はローカル動作
+- PWA、Safe Area、44px以上の主要タップ領域、画面ズーム対応
 
-## v3.4 の主な変更
+## セキュリティ境界
 
-- HOME画面を全面再設計。iPhone 15系（約393×852 CSS px）を基準に、要素同士が重ならず1画面に収まるよう最適化。
-- ONLINEの招待は共有ボタン1つに統一。対応端末ではWeb Share APIでiOS/Androidの共有メニューを直接表示。非対応時はリンクをコピー。
-- 対戦中の12脚を画面中心の真円状に配置。各イスは円の中心を向くよう角度を自動調整。
-- AIキャラクター4名をアニメ風のオリジナル人物イラストへ刷新。
-- スマートフォン向けに見出し、得点、説明文、操作ボタンの文字サイズを再調整。
-- CHALLENGEモード追加。
-  - NO SHOCK：感電0回で勝利
-  - SIX TURN：6ターン以内に勝利
-  - HIGH RISK：7〜12番のみ、30PT先取、感電2回で敗北
-  - SUDDEN DEATH：25PT先取、感電1回で敗北
-- AI解放要素：レイ/ゴウは初期開放。ミカはSOLO 2勝、ナギはSOLO 5勝で開放。
-- AIの性格に応じたセリフ表示。
-- 実績6種、直近10試合の対戦履歴、連勝記録を端末内に保存。
-- 既存の通信秘密保持、SAFE後の罠位置公開、結果演出、再接続、BGM/SE設定を維持。
+この構成は友人間のカジュアル対戦向けです。Commit-Revealにより罠の事後変更は検出できますが、中央の裁定サーバーはありません。改造クライアント同士の主張が食い違った場合、共有された正式勝敗は確定せず対戦無効になります。ランキング、賞品、公式戦績には信頼できるバックエンドが必要です。
 
+FirebaseのWeb設定値と招待URLはパスワードではありません。招待IDは十分長く推測困難ですが、URLを受け取った人は空いているguest枠を取得できます。読み込み後、アプリは招待IDをブラウザのアドレス欄から除去します。
 
-### v3.4 実機レイアウト修正
+Sparkプランでは請求は発生しませんが、無料枠を超えるとサービスが停止します。App Check、Firebase Consoleの利用量監視、古いルームの定期的な管理者削除を推奨します。クライアントだけでは、誰も再訪しない古いルームを確実に削除できません。
 
-- iOS Safariの下部ブラウザバーを含む実表示領域でゲーム画面を6領域（上部/接続/スコア/状況/盤面/操作）に再構成。
-- AI情報とCHALLENGE情報を同じコンテキスト領域に収め、盤面が下へ押し出される問題を修正。
-- ONLINE待機時、AI対戦、CHALLENGEのいずれでも盤面を残り表示領域の中央へ配置。
-- セッション確立前の操作を無効化し、「先にルームへ参加してください」がSOLO中に出る競合を修正。
-- HOMEの余白配分を再調整し、主要操作が上に固まりすぎないよう画面高に応じて伸縮。
-- SAFEで除外済みのイスを盤面から完全に消し、罠公開時のみ必要なイスを再表示。
+## 構成
 
-## 起動
+```text
+public/
+  app.js
+  js/
+    ai/local-session.js
+    firebase/config.js
+    firebase/online-session.js
+    game/commitment.js
+    game/replay.js
+    game/rules.js
+    storage/local-secrets.js
+    vendor/firebase.js
+src/firebase-entry.js
+database.rules.json
+firebase.json
+test/
+```
 
-Node.js 22以上とpnpmを使用します。
+`game/replay.js`はRealtime Databaseのイベントを先頭から再生する決定論的エンジンです。Firebase SDKはビルド時だけ`public/js/vendor/firebase.js`へまとめられ、公開環境にNode.jsランタイムは不要です。
+
+## 開発と検証
+
+Node.js 22以上、pnpm 11.19.0を使用します。
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm start
-```
-
-`http://localhost:3000` を開きます。
-
-## Renderでの更新を簡単にする
-
-`render.yaml` は GitHub の `main` ブランチ更新をトリガーに自動デプロイする設定です。
-
-今後は原則として：
-
-1. GitHubのリポジトリを最新版で更新
-2. `Commit changes`
-3. 終了
-
-Render側の `Manual Deploy` は通常不要です。GitHubの最新コミットをRenderが自動でビルド・公開します。
-
-## 検証
-
-```bash
+pnpm run build
 pnpm run check
 pnpm test
+pnpm test:rules
 ```
 
-GitHub ActionsでもNode.js 22／24の両方で構文チェックとテストを実行します。
+`test:rules`はJava 21以上とFirebase Realtime Database Emulatorを使用します。
 
-## 通信設計
+主なテスト対象:
 
-- 電気イスの現在位置はサーバーだけが保持します。
-- 仕掛け中は相手クライアントへ `trapSeat` を送信しません。
-- 判定後の `result` フェーズでのみ、SAFE公開演出用として罠位置を両者へ送ります。
-- 得点、感電回数、使用済みイス、勝敗はサーバー権威型です。
-- 再接続猶予は180秒です。
-- WebSocketは同一オリジンのみ許可します。別ドメインから接続する場合は `ALLOWED_ORIGINS` へカンマ区切りで追加してください。
-- リバースプロキシの転送元IPを信頼する場合は `TRUST_PROXY=true` を設定します。Renderでは自動的に有効になります。
-- 最大ルーム数は `MAX_ROOMS` で調整できます。
+- room / match / turn / UID / seat / nonceをCommitへ束縛
+- 正常Revealと改ざんReveal
+- イベントからの得点、感電、使用済みイス、勝敗再構築
+- 未来イベント・順序違反の無視または対戦無効化
+- 第三者read/write拒否
+- guest枠の二重取得拒否
+- Commit / Choice / Revealの役割制限と上書き・削除拒否
+- 親ノード上書き拒否
+- Firebaseサーバー時刻によるReveal Timeout
+- PWA、CSP、スマホ向け静的要件
 
-## 注意
+## Firebase公開
 
-- Render無料環境ではデプロイやインスタンス破棄時にローカルスナップショットが消える可能性があります。本格運用ではRedisや永続DBへ移行してください。
-- `.room-snapshots.json` は実行時専用でGit管理しません。再接続トークンの生値や接続元IPは保存しません。
-- 実績・AI解放・対戦履歴はブラウザのlocalStorageに保存します。ブラウザデータを消すとリセットされます。
-- オフライン時はHOME画面などのアプリシェルを開けますが、通信対戦とAI対戦にはサーバー接続が必要です。
-- Web Share APIの共有メニューはHTTPSかつ対応ブラウザで利用できます。非対応環境では招待URLをクリップボードへコピーします。
-- 番組ロゴ、映像、実際の番組音源は使用していません。ビジュアルは暗雲・雷・メタリック表現を用いたオリジナルのオマージュデザインです。
+1. FirebaseプロジェクトをSparkプランで作成し、Billingアカウントを接続しない
+2. Anonymous Authenticationを有効化
+3. Realtime Databaseを作成する
+4. Firebase CLIで対象プロジェクトを選択する
+5. ビルド後、HostingとRulesを公開する
 
+```bash
+firebase use --add
+pnpm run build
+firebase deploy --only hosting,database
+```
 
-## v3.4 layout correction
-- iPhone Safariで中央に密集していた12脚をJS座標計算へ変更。
-- 全12脚を真円上へ配置し、それぞれ中心方向を向くよう修正。
-- HOMEの巨大な空白を削減し、主要操作を上方へ再配置。
-- SOLOのAI画像と文字の重なりを解消。
-- SAFE/罠公開オーバーレイをVisual Viewport中央へ固定。
-- 結果情報の重複を削減し、SAFE→罠公開の順序を明確化。
-- iPhone 15クラスの文字サイズを再調整。
+Firebase Hostingでは予約URL`/__/firebase/init.json`から設定を取得するため、APIキーを手作業でソースへ貼る必要はありません。
 
+### App Check
 
-## v3.4 layout correction
-- Game screen uses explicit grid areas and a single context row for AI/challenge banners.
-- Fixes challenge arena being pushed off-screen and online waiting arena/action rows jumping upward.
-- Removes arena translate hacks.
-- Adds client session-handshake gate and automatic resume request.
-- Re-centers overlays against VisualViewport without double safe-area padding.
+Web用App Checkを有効にする場合は、アプリの起動前に次の公開設定を与えます。site keyは秘密情報ではありません。適用前にFirebase Consoleでメトリクスを確認し、正規ユーザーを拒否しないことを確認してください。
 
-- SAFEで取得済みのイスは通常盤面から完全に消え、罠公開時だけ安全席として一時表示されます。
+```js
+globalThis.__APP_CHECK_SITE_KEY__ = 'YOUR_RECAPTCHA_SITE_KEY';
+```
 
-## v3.5
-- iPhone Safari の実 visual viewport をアプリ全体の高さとして使用。
-- プレイヤーカードを CSS Grid で再設計し、名前・得点・感電・勝数が互いに重ならない構造へ変更。
-- AI情報帯は2行固定、チャレンジ帯は1行省略で高さを上限化。
-- 盤面サイズを実際の残り表示領域から JavaScript で計測し、正方形サイズを直接指定。
-- 状態文、選択文、待機文は最大2行に制限し、長文でもボタンへ侵入しないよう修正。
-- 結果・確認・開始画面の全テキストを幅制約・最大行数付きに変更。
-- Toast を決定ボタンの上に被せない位置へ変更。
-- HOME / SOLO / CHALLENGE 含む主要文字に省略・最大幅・可変文字サイズを追加。
+現在の配布物はキー未設定でも動作します。Firebase側でenforcementだけを先に有効化しないでください。
+
+## 運用上の制約
+
+- SparkのRealtime Databaseは100同時接続まで
+- Firebase障害・無料枠超過中はONLINE対戦不可
+- Anonymous Authのブラウザデータを失うと同じ参加者として復帰できない
+- Commit後にsessionStorageを失うとRevealできず、90秒後にタイムアウト終了
+- 意図的切断と通信事故は区別できない
+- ONLINE再戦は、新しい招待ルームを作成して行う
+- 物理削除されない古いルームは管理者が定期確認する
+
+## バージョン
+
+`4.0.0` — Firebase Spark / Commit-Reveal / immutable event replayへの移行。

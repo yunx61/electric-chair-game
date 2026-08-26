@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: electric-chair-duel
-    runtime: node
-    plan: free
-    buildCommand: pnpm install --frozen-lockfile
-    startCommand: pnpm start
-    autoDeployTrigger: commit

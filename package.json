@@ -1,20 +1,27 @@
 {
   "name": "electric-chair-duel",
-  "version": "3.6.0",
+  "version": "4.0.0",
   "private": true,
   "description": "Realtime electric chair mind game with online, AI, challenges, achievements and mobile-first one-screen UI",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/service-worker.js",
-    "test": "node --test"
+    "build": "node ./scripts/build.mjs",
+    "preview": "node ./scripts/preview.mjs",
+    "check": "node --check public/app.js && node --check public/service-worker.js && node --check public/js/game/replay.js && node --check public/js/firebase/online-session.js && node --check public/js/ai/local-session.js",
+    "test": "node --test test/game.test.js test/static.test.js",
+    "test:rules": "firebase emulators:exec --only database \"node --test test/rules.test.js\"",
+    "verify": "pnpm run build && pnpm run check && pnpm test"
   },
   "engines": {
     "node": ">=22"
   },
   "packageManager": "pnpm@11.19.0",
   "dependencies": {
-    "ws": "8.21.3"
+    "firebase": "12.18.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "esbuild": "0.28.2",
+    "firebase-tools": "15.28.1"
   }
 }

@@ -1,9 +1,18 @@
-const CACHE_NAME = 'electric-chair-duel-v3.6.0';
+const CACHE_NAME = 'electric-chair-duel-v4.0.0';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
+  '/runtime-config.js',
+  '/js/ai/local-session.js',
+  '/js/firebase/config.js',
+  '/js/firebase/online-session.js',
+  '/js/game/commitment.js',
+  '/js/game/replay.js',
+  '/js/game/rules.js',
+  '/js/storage/local-secrets.js',
+  '/js/vendor/firebase.js',
   '/manifest.webmanifest',
   '/icon.svg',
   '/assets/ai-rei.webp',
