@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ELECTRIC CHAIR DUEL">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#38101d"/>
+      <stop offset="0.58" stop-color="#0c0d13"/>
+      <stop offset="1" stop-color="#030305"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#e8fbff"/>
+      <stop offset="0.45" stop-color="#6fcfff"/>
+      <stop offset="1" stop-color="#b46cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="178" fill="none" stroke="#742632" stroke-width="8"/>
+  <path d="M184 132h144v142H184zM164 266h184v64H164zM190 326l-24 106M322 326l24 106M204 132V84M308 132V84" fill="#0a0a0d" stroke="url(#metal)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M98 164l62 9-39 52 53 8-90 122 31-88-55-10zM414 164l-62 9 39 52-53 8 90 122-31-88 55-10z" fill="#ffd84d" stroke="#fff4a0" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="256" cy="214" r="48" fill="#09090c" stroke="#ffd84d" stroke-width="6"/>
+  <text x="256" y="232" text-anchor="middle" fill="#fff" font-family="Arial Black,system-ui" font-size="52" font-weight="900">12</text>
+</svg>

@@ -1,0 +1,20 @@
+{
+  "name": "ELECTRIC CHAIR DUEL",
+  "short_name": "CHAIR DUEL",
+  "description": "12脚の円陣で読み合うリアルタイム心理戦ゲーム",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#030305",
+  "theme_color": "#07070a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

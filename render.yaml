@@ -3,6 +3,6 @@ services:
     name: electric-chair-duel
     runtime: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: pnpm install --frozen-lockfile
+    startCommand: pnpm start
     autoDeployTrigger: commit

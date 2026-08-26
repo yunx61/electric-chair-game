@@ -325,3 +325,40 @@ html,body{width:100%;height:100%;overflow:hidden}
 /* CHALLENGE: use the whole panel instead of floating four cards in a large empty box. */
 .challenge-grid{align-content:stretch!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
 .challenge-card-item{height:100%!important;min-height:0!important}
+
+/* v3.6 accessibility and resilient mobile controls */
+.skip-link{position:fixed;z-index:200;left:12px;top:8px;transform:translateY(-160%);padding:10px 14px;border-radius:9px;background:#fff;color:#000;font-size:14px;font-weight:800}
+.skip-link:focus{transform:none}
+.orientation-hint{display:none}
+.field-label{display:block;font-size:10px;font-weight:900;color:#9da7b3;letter-spacing:.12em;line-height:1.2}
+button,input,[href]{-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,[href]:focus-visible{outline:3px solid #8be9ff!important;outline-offset:2px!important}
+.tab{min-height:44px!important;font-size:max(10px,clamp(9px,2.45vw,11px))!important}
+.home-tabs{height:44px!important}
+#lobby.active{grid-template-rows:44px minmax(0,1fr)!important}
+.icon-btn{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+.topbar{grid-template-columns:44px minmax(0,1fr) 44px!important}
+.btn,.difficulty,.sound-setting{min-height:44px!important}
+.modal-close{width:44px!important;height:44px!important;right:8px!important;top:8px!important}
+.setup-card label,.field-label{font-size:max(10px,2.5vw)!important}
+.setup-note,.invite-hint{font-size:max(10px,2.5vw)!important}
+.tool-btn b{font-size:max(10px,2.4vw)!important}.tool-btn span{font-size:max(9px,2.1vw)!important}
+.challenge-card-item p{font-size:max(10px,2.45vw)!important}.challenge-card-item .challenge-meta{font-size:max(9px,2.2vw)!important}
+.connection-bar{font-size:max(9px,2.2vw)!important}
+.player-card small{font-size:9px!important}.player-card p{font-size:9px!important}.player-card i{font-size:8.5px!important}
+.ai-banner small{font-size:9px!important}.ai-banner p{font-size:9px!important}
+.game-label{font-size:9px!important}.arena-center p{font-size:max(9px,2.35vw)!important}
+.action-zone #selectionText{font-size:11px!important}.action-zone .btn{height:44px!important;min-height:44px!important}
+.action-zone{height:56px!important}
+.achievement-item span,.history-item span{font-size:10px!important}.rules-card li{font-size:12px!important}
+#game.active{grid-template-rows:44px 22px 80px auto minmax(0,1fr) 56px!important}
+
+@media (max-height:700px){
+  #game.active{grid-template-rows:44px 20px 72px auto minmax(0,1fr) 54px!important}
+  .icon-btn{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  .action-zone{height:54px!important}.action-zone .btn{height:44px!important;min-height:44px!important}
+}
+
+@media (orientation:landscape) and (max-height:500px){
+  .orientation-hint{display:block;position:fixed;z-index:120;top:calc(env(safe-area-inset-top) + 4px);left:50%;transform:translateX(-50%);max-width:90vw;padding:6px 10px;border:1px solid #665b2d;border-radius:999px;background:#161306e8;color:#ffe982;font-size:10px;font-weight:800;white-space:nowrap;pointer-events:none}
+}
