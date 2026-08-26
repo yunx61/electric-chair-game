@@ -83,9 +83,12 @@ pnpm test:rules
 firebase use --add
 pnpm run build
 firebase deploy --only hosting,database
+pnpm smoke:prod <FirebaseプロジェクトID>
 ```
 
 Firebase Hostingでは予約URL`/__/firebase/init.json`から設定を取得するため、APIキーを手作業でソースへ貼る必要はありません。
+
+`smoke:prod`は本番環境に独立した匿名クライアントを作り、guest取得・match作成・第三者read拒否まで検証します。検証ルームは管理者権限で削除してください。匿名テストアカウントは、Firebase Authenticationの「30日超の匿名アカウント自動削除」を有効にして整理します。
 
 ### App Check
 
