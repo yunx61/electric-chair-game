@@ -1,4 +1,4 @@
-const CACHE_NAME = 'electric-chair-duel-v4.0.0';
+const CACHE_NAME = 'electric-chair-duel-v4.0.1';
 const APP_SHELL = [
   '/',
   '/index.html',

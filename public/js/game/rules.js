@@ -3,6 +3,7 @@ export const STANDARD_SEATS = Object.freeze(Array.from({ length: 12 }, (_, index
 export const MAX_TURNS = 15;
 export const RESULT_HOLD_MS = 5000;
 export const REVEAL_TIMEOUT_MS = 90000;
+export const ROOM_TTL_MS = 86400000;
 
 const CHALLENGE_RULES = Object.freeze({
   no_shock: { targetScore: 40, shockLimit: 3, seats: STANDARD_SEATS },

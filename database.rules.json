@@ -3,9 +3,10 @@
     ".read": false,
     ".write": false,
     "rooms": {
+      ".indexOn": ["meta/createdAt"],
       "$roomId": {
         ".read": "auth != null && (data.child('meta/host/uid').val() === auth.uid || data.child('meta/guest/uid').val() === auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('meta/schemaVersion').val() === 1 && newData.child('meta/roomId').val() === $roomId && newData.child('meta/host/uid').val() === auth.uid && newData.child('meta/createdAt').isNumber() && newData.child('meta/createdAt').val() <= now && newData.child('meta/createdAt').val() >= now - 10000 && !newData.child('meta/guest').exists() && !newData.child('game').exists() && !newData.child('presence').exists()) || (data.exists() && !newData.exists() && data.child('meta/host/uid').val() === auth.uid && !data.child('meta/guest').exists()))",
+        ".write": "auth != null && ((!data.exists() && newData.child('meta/schemaVersion').val() === 1 && newData.child('meta/roomId').val() === $roomId && newData.child('meta/host/uid').val() === auth.uid && newData.child('meta/createdAt').isNumber() && newData.child('meta/createdAt').val() <= now && newData.child('meta/createdAt').val() >= now - 10000 && !newData.child('meta/guest').exists() && !newData.child('game').exists() && !newData.child('presence').exists()) || (data.exists() && !newData.exists() && ((data.child('meta/host/uid').val() === auth.uid && (!data.child('meta/guest').exists() || !data.child('game/turns').exists())) || ((data.child('meta/host/uid').val() === auth.uid || data.child('meta/guest/uid').val() === auth.uid) && data.child('meta/createdAt').val() + 86400000 <= now))))",
         ".validate": "newData.hasChildren(['meta'])",
         "meta": {
           ".validate": "newData.hasChildren(['schemaVersion', 'roomId', 'createdAt', 'host'])",
@@ -20,7 +21,7 @@
           },
           "guest": {
             ".read": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid)",
-            ".write": "auth != null && !data.exists() && newData.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($roomId).child('meta/host/uid').val() !== auth.uid",
+            ".write": "auth != null && !data.exists() && newData.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($roomId).child('meta/host/uid').val() !== auth.uid && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now",
             ".validate": "newData.hasChildren(['uid', 'name', 'joinedAt'])",
             "uid": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,128}$/)" },
             "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 32" },
@@ -31,7 +32,7 @@
         },
         "presence": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid && (root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid || root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) && newData.exists()",
+            ".write": "auth != null && auth.uid === $uid && (root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid || root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now && newData.exists()",
             ".validate": "newData.hasChildren(['state', 'lastChanged'])",
             "state": { ".validate": "newData.isString() && (newData.val() === 'online' || newData.val() === 'offline')" },
             "lastChanged": { ".validate": "newData.isNumber() && newData.val() <= now && newData.val() >= now - 10000" },
@@ -40,7 +41,7 @@
         },
         "game": {
           "meta": {
-            ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid && root.child('rooms').child($roomId).child('meta/guest/uid').isString()",
+            ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid && root.child('rooms').child($roomId).child('meta/guest/uid').isString() && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now",
             ".validate": "newData.hasChildren(['schemaVersion', 'matchId', 'createdAt'])",
             "schemaVersion": { ".validate": "newData.val() === 1" },
             "matchId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{22}$/)" },
@@ -50,7 +51,7 @@
           "turns": {
             "$turn": {
               "commit": {
-                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/meta').exists() && (($turn.matches(/^h[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid) || ($turn.matches(/^g[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid))",
+                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/meta').exists() && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now && (($turn.matches(/^h0000(01|03|05|07|09|11|13|15)$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid) || ($turn.matches(/^g0000(02|04|06|08|10|12|14)$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid)) && ($turn === 'h000001' || ($turn === 'g000002' && (root.child('rooms').child($roomId).child('game/turns/h000001/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000001/forfeit').exists())) || ($turn === 'h000003' && (root.child('rooms').child($roomId).child('game/turns/g000002/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000002/forfeit').exists())) || ($turn === 'g000004' && (root.child('rooms').child($roomId).child('game/turns/h000003/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000003/forfeit').exists())) || ($turn === 'h000005' && (root.child('rooms').child($roomId).child('game/turns/g000004/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000004/forfeit').exists())) || ($turn === 'g000006' && (root.child('rooms').child($roomId).child('game/turns/h000005/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000005/forfeit').exists())) || ($turn === 'h000007' && (root.child('rooms').child($roomId).child('game/turns/g000006/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000006/forfeit').exists())) || ($turn === 'g000008' && (root.child('rooms').child($roomId).child('game/turns/h000007/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000007/forfeit').exists())) || ($turn === 'h000009' && (root.child('rooms').child($roomId).child('game/turns/g000008/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000008/forfeit').exists())) || ($turn === 'g000010' && (root.child('rooms').child($roomId).child('game/turns/h000009/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000009/forfeit').exists())) || ($turn === 'h000011' && (root.child('rooms').child($roomId).child('game/turns/g000010/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000010/forfeit').exists())) || ($turn === 'g000012' && (root.child('rooms').child($roomId).child('game/turns/h000011/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000011/forfeit').exists())) || ($turn === 'h000013' && (root.child('rooms').child($roomId).child('game/turns/g000012/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000012/forfeit').exists())) || ($turn === 'g000014' && (root.child('rooms').child($roomId).child('game/turns/h000013/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/h000013/forfeit').exists())) || ($turn === 'h000015' && (root.child('rooms').child($roomId).child('game/turns/g000014/reveal').exists() || root.child('rooms').child($roomId).child('game/turns/g000014/forfeit').exists())))",
                 ".validate": "newData.hasChildren(['uid', 'hash', 'at'])",
                 "uid": { ".validate": "newData.val() === auth.uid" },
                 "hash": { ".validate": "newData.isString() && newData.val().matches(/^[a-f0-9]{64}$/)" },
@@ -58,7 +59,7 @@
                 "$other": { ".validate": false }
               },
               "choice": {
-                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('commit').exists() && (($turn.matches(/^h[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) || ($turn.matches(/^g[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid))",
+                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('commit').exists() && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now && (($turn.matches(/^h0000(01|03|05|07|09|11|13|15)$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) || ($turn.matches(/^g0000(02|04|06|08|10|12|14)$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid))",
                 ".validate": "newData.hasChildren(['uid', 'seat', 'at'])",
                 "uid": { ".validate": "newData.val() === auth.uid" },
                 "seat": { ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 12" },
@@ -66,7 +67,7 @@
                 "$other": { ".validate": false }
               },
               "reveal": {
-                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('choice').exists() && (($turn.matches(/^h[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid) || ($turn.matches(/^g[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid))",
+                ".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('choice').exists() && !root.child('rooms').child($roomId).child('game/turns').child($turn).child('forfeit').exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('choice/at').val() + 90000 > now && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now && (($turn.matches(/^h0000(01|03|05|07|09|11|13|15)$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid) || ($turn.matches(/^g0000(02|04|06|08|10|12|14)$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid))",
                 ".validate": "newData.hasChildren(['uid', 'seat', 'nonce', 'at'])",
                 "uid": { ".validate": "newData.val() === auth.uid" },
                 "seat": { ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 12" },
@@ -75,7 +76,7 @@
                 "$other": { ".validate": false }
               },
               "forfeit": {
-                ".write": "auth != null && !data.exists() && newData.exists() && !root.child('rooms').child($roomId).child('game/turns').child($turn).child('reveal').exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('choice/at').val() + 90000 <= now && (($turn.matches(/^h[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) || ($turn.matches(/^g[0-9]{6}$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid))",
+                ".write": "auth != null && !data.exists() && newData.exists() && !root.child('rooms').child($roomId).child('game/turns').child($turn).child('reveal').exists() && root.child('rooms').child($roomId).child('game/turns').child($turn).child('choice/at').val() + 90000 <= now && root.child('rooms').child($roomId).child('meta/createdAt').val() + 86400000 > now && (($turn.matches(/^h0000(01|03|05|07|09|11|13|15)$/) && root.child('rooms').child($roomId).child('meta/guest/uid').val() === auth.uid) || ($turn.matches(/^g0000(02|04|06|08|10|12|14)$/) && root.child('rooms').child($roomId).child('meta/host/uid').val() === auth.uid))",
                 ".validate": "newData.hasChildren(['uid', 'reason', 'at'])",
                 "uid": { ".validate": "newData.val() === auth.uid" },
                 "reason": { ".validate": "newData.val() === 'reveal_timeout'" },

@@ -80,6 +80,26 @@ test('events are role-bound, ordered and write-once', async () => {
   await assertFails(set(ref(hostDb, `rooms/${roomId}/game/turns/h000001/commit`), null));
 });
 
+test('invalid, out-of-range and future turn commits are rejected', async () => {
+  await env.clearDatabase();
+  const { hostDb, guestDb } = await joinAndStart();
+  const hostCommit = { uid: 'host_uid', hash: 'a'.repeat(64), at: now() };
+  const guestCommit = { uid: 'guest_uid', hash: 'b'.repeat(64), at: now() };
+  await assertFails(set(ref(hostDb, `rooms/${roomId}/game/turns/h000002/commit`), hostCommit));
+  await assertFails(set(ref(guestDb, `rooms/${roomId}/game/turns/g000001/commit`), guestCommit));
+  await assertFails(set(ref(hostDb, `rooms/${roomId}/game/turns/h000017/commit`), hostCommit));
+  await assertFails(set(ref(hostDb, `rooms/${roomId}/game/turns/h999999/commit`), hostCommit));
+  await assertFails(set(ref(guestDb, `rooms/${roomId}/game/turns/g000002/commit`), guestCommit));
+  await assertSucceeds(set(ref(hostDb, `rooms/${roomId}/game/turns/h000001/commit`), hostCommit));
+  await assertSucceeds(set(ref(guestDb, `rooms/${roomId}/game/turns/h000001/choice`), {
+    uid: 'guest_uid', seat: 8, at: now()
+  }));
+  await assertSucceeds(set(ref(hostDb, `rooms/${roomId}/game/turns/h000001/reveal`), {
+    uid: 'host_uid', seat: 12, nonce: 'c'.repeat(32), at: now()
+  }));
+  await assertSucceeds(set(ref(guestDb, `rooms/${roomId}/game/turns/g000002/commit`), guestCommit));
+});
+
 test('parent overwrite and early timeout claims are rejected', async () => {
   await env.clearDatabase();
   const { hostDb, guestDb } = await joinAndStart();
@@ -114,4 +134,57 @@ test('the sitter may claim a reveal timeout only after server time passes', asyn
   await assertSucceeds(set(ref(guestDb, `rooms/${roomId}/game/turns/h000001/forfeit`), {
     uid: 'guest_uid', reason: 'reveal_timeout', at: now()
   }));
+  await assertFails(set(ref(env.authenticatedContext('host_uid').database(), `rooms/${roomId}/game/turns/h000001/reveal`), {
+    uid: 'host_uid', seat: 12, nonce: 'f'.repeat(32), at: now()
+  }));
+});
+
+test('a late reveal cannot override the timeout result', async () => {
+  await env.clearDatabase();
+  const { hostDb } = await joinAndStart();
+  await env.withSecurityRulesDisabled(async context => {
+    await set(ref(context.database(), `rooms/${roomId}/game/turns/h000001`), {
+      commit: { uid: 'host_uid', hash: 'f'.repeat(64), at: now() - 92000 },
+      choice: { uid: 'guest_uid', seat: 8, at: now() - 91000 }
+    });
+  });
+  await assertFails(set(ref(hostDb, `rooms/${roomId}/game/turns/h000001/reveal`), {
+    uid: 'host_uid', seat: 12, nonce: 'f'.repeat(32), at: now()
+  }));
+});
+
+test('the host can release a claimed room before the first move but not after it', async () => {
+  await env.clearDatabase();
+  const { hostDb } = await joinAndStart();
+  await assertSucceeds(set(ref(hostDb, `rooms/${roomId}`), null));
+
+  const started = await joinAndStart();
+  await assertSucceeds(set(ref(started.hostDb, `rooms/${roomId}/game/turns/h000001/commit`), {
+    uid: 'host_uid', hash: 'a'.repeat(64), at: now()
+  }));
+  await assertFails(set(ref(started.hostDb, `rooms/${roomId}`), null));
+});
+
+test('expired rooms reject events and can be removed by either participant', async () => {
+  await env.clearDatabase();
+  await env.withSecurityRulesDisabled(async context => {
+    await set(ref(context.database(), `rooms/${roomId}`), {
+      meta: {
+        schemaVersion: 1,
+        roomId,
+        createdAt: now() - 86400001,
+        host: { uid: 'host_uid', name: 'HOST' },
+        guest: { uid: 'guest_uid', name: 'GUEST', joinedAt: now() - 86400000 }
+      },
+      game: {
+        meta: { schemaVersion: 1, matchId: 'ABCDEFGHIJKLMNOPQRSTUV', createdAt: now() - 86400000 },
+        turns: { h000001: { commit: { uid: 'host_uid', hash: 'a'.repeat(64), at: now() - 86400000 } } }
+      }
+    });
+  });
+  const guestDb = env.authenticatedContext('guest_uid').database();
+  await assertFails(set(ref(guestDb, `rooms/${roomId}/game/turns/h000001/choice`), {
+    uid: 'guest_uid', seat: 8, at: now()
+  }));
+  await assertSucceeds(set(ref(guestDb, `rooms/${roomId}`), null));
 });

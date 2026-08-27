@@ -17,7 +17,7 @@ import {
 } from '../vendor/firebase.js';
 import { createCommit, generateNonce } from '../game/commitment.js';
 import { replayOnlineGame } from '../game/replay.js';
-import { cleanName, REVEAL_TIMEOUT_MS, turnKey } from '../game/rules.js';
+import { cleanName, REVEAL_TIMEOUT_MS, ROOM_TTL_MS, turnKey } from '../game/rules.js';
 import { loadPendingSecret, removePendingSecret, savePendingSecret } from '../storage/local-secrets.js';
 import { appCheckSiteKey, loadFirebaseConfig } from './config.js';
 
@@ -52,16 +52,20 @@ export class OnlineSession {
     this.user = null;
     this.roomId = null;
     this.room = null;
+    this.hostRoom = false;
     this.state = null;
     this.stopRoom = null;
     this.refreshTimer = null;
     this.timeoutTimer = null;
+    this.roomExpiryTimer = null;
     this.renderVersion = 0;
     this.serverTimeOffset = 0;
     this.stopOffset = null;
     this.gameCreation = null;
     this.revealInFlight = null;
     this.forfeitInFlight = null;
+    this.pendingAction = null;
+    this.expiringRoom = false;
     this.closed = false;
   }
 
@@ -94,6 +98,7 @@ export class OnlineSession {
         host: { uid: this.user.uid, name: cleanName(name) }
       }
     });
+    this.hostRoom = true;
     await this.attach(roomId);
   }
 
@@ -109,6 +114,7 @@ export class OnlineSession {
     if (!result.committed || result.snapshot.val()?.uid !== this.user.uid) {
       throw new Error('このルームには参加できません');
     }
+    this.hostRoom = false;
     await this.attach(normalized);
   }
 
@@ -126,10 +132,18 @@ export class OnlineSession {
     this.stopRoom?.();
     this.stopRoom = onValue(ref(this.db, `rooms/${roomId}`), snapshot => {
       if (!snapshot.exists()) {
-        this.callbacks.onError?.('ルームが見つかりません');
+        if (!this.expiringRoom) this.callbacks.onError?.('ルームが見つかりません');
         return;
       }
       this.room = snapshot.val();
+      this.hostRoom = this.room?.meta?.host?.uid === this.user.uid;
+      const expiresIn = Number(this.room?.meta?.createdAt) + ROOM_TTL_MS - this.serverNow();
+      clearTimeout(this.roomExpiryTimer);
+      if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
+        this.expireRoom();
+        return;
+      }
+      this.roomExpiryTimer = setTimeout(() => this.expireRoom(), expiresIn + 50);
       this.ensureGame().catch(error => this.callbacks.onError?.(error.message));
       this.refreshState().catch(error => this.callbacks.onError?.(error.message));
     }, error => {
@@ -163,6 +177,13 @@ export class OnlineSession {
     });
     if (this.closed || version !== this.renderVersion) return;
     this.state = state;
+    const pending = this.pendingAction;
+    if (pending && (
+      pending.matchId !== state.matchId
+      || pending.turnNumber !== state.turnNumber
+      || (pending.type === 'set_trap' && state.phase !== 'set_trap')
+      || (pending.type === 'choose_seat' && state.phase !== 'choose_seat')
+    )) this.pendingAction = null;
     state.clockOffset = this.serverTimeOffset;
     this.callbacks.onConnection?.('connected');
     this.callbacks.onState?.(state);
@@ -240,21 +261,37 @@ export class OnlineSession {
     return Date.now() + this.serverTimeOffset;
   }
 
+  expireRoom() {
+    if (this.expiringRoom || this.closed) return;
+    this.expiringRoom = true;
+    clearTimeout(this.roomExpiryTimer);
+    this.stopRoom?.();
+    this.stopRoom = null;
+    try { localStorage.removeItem('ec_session'); } catch {}
+    set(ref(this.db, `rooms/${this.roomId}`), null).catch(() => {});
+    this.callbacks.onConnection?.('offline');
+    this.callbacks.onExpired?.();
+  }
+
   async setTrap(seat) {
     const state = this.state;
     if (!state.canSetTrap || !state.remainingSeats.includes(seat)) throw new Error('今はそのイスに仕掛けられません');
-    const nonce = generateNonce();
-    const secret = { roomId: this.roomId, matchId: state.matchId, turnNumber: state.turnNumber, seat, nonce };
-    const hash = await createCommit({ ...secret, trapperUid: this.user.uid });
-    savePendingSecret({ ...secret, commitHash: hash });
-    const key = turnKey(state.turnNumber, state.setterIndex);
+    if (this.pendingAction) throw new Error('直前の操作を送信中です');
+    const action = { type: 'set_trap', matchId: state.matchId, turnNumber: state.turnNumber };
+    this.pendingAction = action;
     try {
+      const nonce = generateNonce();
+      const secret = { roomId: this.roomId, matchId: state.matchId, turnNumber: state.turnNumber, seat, nonce };
+      const hash = await createCommit({ ...secret, trapperUid: this.user.uid });
+      savePendingSecret({ ...secret, commitHash: hash });
+      const key = turnKey(state.turnNumber, state.setterIndex);
       await set(ref(this.db, `rooms/${this.roomId}/game/turns/${key}/commit`), {
         uid: this.user.uid,
         hash,
         at: serverTimestamp()
       });
     } catch (error) {
+      if (this.pendingAction === action) this.pendingAction = null;
       removePendingSecret(this.roomId, state.matchId, state.turnNumber);
       throw error;
     }
@@ -263,27 +300,43 @@ export class OnlineSession {
   async chooseSeat(seat) {
     const state = this.state;
     if (!state.canChooseSeat || !state.remainingSeats.includes(seat)) throw new Error('今はそのイスを選べません');
-    const key = turnKey(state.turnNumber, state.setterIndex);
-    await set(ref(this.db, `rooms/${this.roomId}/game/turns/${key}/choice`), {
-      uid: this.user.uid,
-      seat,
-      at: serverTimestamp()
-    });
+    if (this.pendingAction) throw new Error('直前の操作を送信中です');
+    const action = { type: 'choose_seat', matchId: state.matchId, turnNumber: state.turnNumber };
+    this.pendingAction = action;
+    try {
+      const key = turnKey(state.turnNumber, state.setterIndex);
+      await set(ref(this.db, `rooms/${this.roomId}/game/turns/${key}/choice`), {
+        uid: this.user.uid,
+        seat,
+        at: serverTimestamp()
+      });
+    } catch (error) {
+      if (this.pendingAction === action) this.pendingAction = null;
+      throw error;
+    }
   }
 
   async close() {
     this.closed = true;
     clearTimeout(this.refreshTimer);
     clearTimeout(this.timeoutTimer);
+    clearTimeout(this.roomExpiryTimer);
     this.stopRoom?.();
     this.stopRoom = null;
     this.stopOffset?.();
     this.stopOffset = null;
-    if (this.db && this.roomId && this.user) {
-      set(ref(this.db, `rooms/${this.roomId}/presence/${this.user.uid}`), {
-        state: 'offline',
-        lastChanged: serverTimestamp()
-      }).catch(() => {});
+    if (this.db && this.roomId && this.user && !this.expiringRoom) {
+      const createdAt = Number(this.room?.meta?.createdAt);
+      const expired = Number.isFinite(createdAt) && createdAt + ROOM_TTL_MS <= this.serverNow();
+      const canRemovePreMove = this.hostRoom && !this.room?.game?.turns;
+      if (expired || canRemovePreMove) {
+        await set(ref(this.db, `rooms/${this.roomId}`), null).catch(() => {});
+      } else {
+        await set(ref(this.db, `rooms/${this.roomId}/presence/${this.user.uid}`), {
+          state: 'offline',
+          lastChanged: serverTimestamp()
+        }).catch(() => {});
+      }
     }
     this.callbacks.onConnection?.('offline');
   }

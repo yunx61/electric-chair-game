@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCommit, generateNonce, verifyCommit } from '../public/js/game/commitment.js';
 import { replayOnlineGame } from '../public/js/game/replay.js';
+import { loadPendingSecret, removePendingSecret, savePendingSecret } from '../public/js/storage/local-secrets.js';
 
 const roomId = 'abcdefghijklmnopqrstuv';
 const matchId = 'ABCDEFGHIJKLMNOPQRSTUV';
@@ -89,4 +90,39 @@ test('server-timed forfeit resolves only after the reveal window event exists', 
   assert.equal(state.phase, 'game_over');
   assert.equal(state.winnerIndex, 1);
   assert.equal(state.endReason, 'reveal_timeout');
+});
+
+test('pending reveal data survives a browser session restart and rejects corrupt data', () => {
+  const createStorage = () => {
+    const values = new Map();
+    return {
+      getItem: key => values.has(key) ? values.get(key) : null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: key => values.delete(key),
+      clear: () => values.clear()
+    };
+  };
+  const previousLocal = globalThis.localStorage;
+  const previousSession = globalThis.sessionStorage;
+  globalThis.localStorage = createStorage();
+  globalThis.sessionStorage = createStorage();
+  try {
+    const secret = { roomId, matchId, turnNumber: 1, seat: 12, nonce: 'a'.repeat(32), commitHash: 'b'.repeat(64) };
+    savePendingSecret(secret);
+    globalThis.sessionStorage.clear();
+    const restored = loadPendingSecret(roomId, matchId, 1);
+    assert.deepEqual({ ...restored, expiresAt: undefined }, { ...secret, expiresAt: undefined });
+    assert.ok(restored.expiresAt > Date.now());
+    removePendingSecret(roomId, matchId, 1);
+    assert.equal(loadPendingSecret(roomId, matchId, 1), null);
+
+    const key = `ecd_pending_secret:${roomId}:${matchId}:1`;
+    globalThis.localStorage.setItem(key, JSON.stringify({ ...secret, seat: 99, expiresAt: Date.now() + 10000 }));
+    assert.equal(loadPendingSecret(roomId, matchId, 1), null);
+  } finally {
+    if (previousLocal === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousLocal;
+    if (previousSession === undefined) delete globalThis.sessionStorage;
+    else globalThis.sessionStorage = previousSession;
+  }
 });

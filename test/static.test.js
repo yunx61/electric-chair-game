@@ -9,7 +9,7 @@ test('v4 is a static Firebase app with zoomable mobile UI', async () => {
   assert.match(html, /<script type="module" src="\/app\.js"><\/script>/);
   assert.doesNotMatch(html, /user-scalable\s*=\s*no/i);
   assert.match(html, /maxlength="22"/);
-  assert.equal(JSON.parse(pkg).version, '4.0.0');
+  assert.equal(JSON.parse(pkg).version, '4.0.1');
   assert.doesNotMatch(pkg, /"ws"/);
 });
 
@@ -20,6 +20,9 @@ test('Firebase rules default-deny and protect immutable events', async () => {
   assert.match(rules, /!data\.exists\(\) && newData\.exists\(\)/);
   assert.match(rules, /reveal_timeout/);
   assert.match(rules, /90000 <= now/);
+  assert.match(rules, /90000 > now/);
+  assert.match(rules, /86400000/);
+  assert.match(rules, /h0000\(01\|03\|05/);
 });
 
 test('PWA and Firebase Hosting security headers are configured', async () => {
