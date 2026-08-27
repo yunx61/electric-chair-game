@@ -22,6 +22,7 @@ const clients = ['host', 'guest', 'outsider'].map(role => {
   const app = initializeApp(config, `prod-smoke-${role}-${randomId()}`);
   return { app, auth: getAuth(app), db: getDatabase(app) };
 });
+let roomCreated = false;
 
 try {
   await Promise.all(clients.map(client => signInAnonymously(client.auth)));
@@ -40,6 +41,7 @@ try {
       host: { uid: hostUid, name: 'SmokeHost' }
     }
   });
+  roomCreated = true;
 
   const claim = await runTransaction(ref(guest.db, `rooms/${roomId}/meta/guest`), current => {
     if (current == null) return { uid: guestUid, name: 'SmokeGuest', joinedAt: serverTimestamp() };
@@ -67,8 +69,11 @@ try {
   const outsiderDenied = outsiderResponse.status === 401 || outsiderResponse.status === 403;
   if (!outsiderDenied) throw new Error('Outsider room read was not denied');
 
-  console.log(JSON.stringify({ ok: true, roomId, anonymousAuth: true, guestClaim: true, outsiderDenied: true }));
+  await set(ref(host.db, `rooms/${roomId}`), null);
+  roomCreated = false;
+  console.log(JSON.stringify({ ok: true, anonymousAuth: true, guestClaim: true, outsiderDenied: true, hostCleanup: true }));
 } finally {
+  if (roomCreated) await set(ref(clients[0].db, `rooms/${roomId}`), null).catch(() => {});
   await Promise.allSettled(clients.map(client => deleteApp(client.app)));
 }
 
