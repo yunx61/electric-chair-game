@@ -1,9 +1,12 @@
-export const PROTOCOL_VERSION = 'ecd-v1';
+export const PROTOCOL_VERSION = 'ecd-v2';
 export const STANDARD_SEATS = Object.freeze(Array.from({ length: 12 }, (_, index) => index + 1));
 export const MAX_TURNS = 15;
 export const RESULT_HOLD_MS = 5000;
 export const REVEAL_TIMEOUT_MS = 90000;
 export const ROOM_TTL_MS = 86400000;
+export const DISCONNECT_TIMEOUT_MS = 120000;
+export const MAX_ACTIVE_ROOMS = 3;
+export const MAX_GAMES = 10;
 
 const CHALLENGE_RULES = Object.freeze({
   no_shock: { targetScore: 40, shockLimit: 3, seats: STANDARD_SEATS },
@@ -25,6 +28,10 @@ export function setterIndexFor(turnNumber, gameNumber = 1) {
 
 export function turnKey(turnNumber, setterIndex) {
   return `${setterIndex === 0 ? 'h' : 'g'}${String(turnNumber).padStart(6, '0')}`;
+}
+
+export function matchKey(gameNumber) {
+  return `m${String(gameNumber).padStart(6, '0')}`;
 }
 
 export function cleanName(value) {

@@ -16,3 +16,7 @@ export function appCheckSiteKey() {
     ? globalThis.__APP_CHECK_SITE_KEY__.trim()
     : '';
 }
+
+export function appCheckProvider() {
+  return globalThis.__APP_CHECK_PROVIDER__ === 'v3' ? 'v3' : 'enterprise';
+}

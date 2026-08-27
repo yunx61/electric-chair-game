@@ -36,12 +36,23 @@ try {
   response = await client.get('/rooms.json');
 }
 const rooms = response.body && typeof response.body === 'object' ? response.body : {};
-const expiredIds = Object.entries(rooms)
+const expiredEntries = Object.entries(rooms)
   .filter(([, room]) => Number.isFinite(room?.meta?.createdAt) && room.meta.createdAt <= cutoff)
-  .map(([roomId]) => roomId);
+  .map(([roomId, room]) => ({ roomId, hostUid: room?.meta?.host?.uid }));
 
-if (execute && expiredIds.length) {
-  await client.patch('/rooms.json', Object.fromEntries(expiredIds.map(roomId => [roomId, null])), {
+if (execute && expiredEntries.length) {
+  const userRoomsResponse = await client.get('/userRooms.json');
+  const userRooms = userRoomsResponse.body && typeof userRoomsResponse.body === 'object' ? userRoomsResponse.body : {};
+  const deletions = {};
+  expiredEntries.forEach(({ roomId, hostUid }) => {
+    deletions[`rooms/${roomId}`] = null;
+    if (/^[A-Za-z0-9_-]{1,128}$/.test(String(hostUid || ''))) {
+      Object.entries(userRooms[hostUid] || {}).forEach(([slot, reservedRoomId]) => {
+        if (reservedRoomId === roomId) deletions[`userRooms/${hostUid}/${slot}`] = null;
+      });
+    }
+  });
+  await client.patch('/.json', deletions, {
     queryParams: { print: 'silent', writeSizeLimit: 'small' }
   });
 }
@@ -52,8 +63,8 @@ console.log(JSON.stringify({
   instance: instanceName,
   mode: execute ? 'execute' : 'dry-run',
   inspected: Object.keys(rooms).length,
-  expired: expiredIds.length,
-  deleted: execute ? expiredIds.length : 0,
+  expired: expiredEntries.length,
+  deleted: execute ? expiredEntries.length : 0,
   retentionHours: 24,
   queryMode
 }));

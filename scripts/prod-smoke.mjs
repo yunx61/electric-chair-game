@@ -23,6 +23,7 @@ const clients = ['host', 'guest', 'outsider'].map(role => {
   return { app, auth: getAuth(app), db: getDatabase(app) };
 });
 let roomCreated = false;
+let reservationCreated = false;
 
 try {
   await Promise.all(clients.map(client => signInAnonymously(client.auth)));
@@ -33,9 +34,12 @@ try {
     throw new Error('Smoke clients did not receive isolated anonymous identities');
   }
 
+  await set(ref(host.db, 'userRooms/' + hostUid + '/slot1'), roomId);
+  reservationCreated = true;
   await set(ref(host.db, `rooms/${roomId}`), {
     meta: {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      protocolVersion: 'ecd-v2',
       roomId,
       createdAt: serverTimestamp(),
       host: { uid: hostUid, name: 'SmokeHost' }
@@ -44,21 +48,23 @@ try {
   roomCreated = true;
 
   const claim = await runTransaction(ref(guest.db, `rooms/${roomId}/meta/guest`), current => {
-    if (current == null) return { uid: guestUid, name: 'SmokeGuest', joinedAt: serverTimestamp() };
+    if (current == null) return { uid: guestUid, name: 'SmokeGuest', protocolVersion: 'ecd-v2', joinedAt: serverTimestamp() };
     return;
   }, { applyLocally: false });
   if (!claim.committed) throw new Error('Guest claim was rejected');
 
   const matchId = randomId();
-  await set(ref(host.db, `rooms/${roomId}/game/meta`), {
-    schemaVersion: 1,
+  await set(ref(host.db, `rooms/${roomId}/game/matches/m000001/meta`), {
+    schemaVersion: 2,
+    gameNumber: 1,
     matchId,
     createdAt: serverTimestamp()
   });
+  await set(ref(host.db, `rooms/${roomId}/game/currentKey`), 'm000001');
 
   const [hostView, guestView] = await Promise.all([
-    get(ref(host.db, `rooms/${roomId}/game/meta`)),
-    get(ref(guest.db, `rooms/${roomId}/game/meta`))
+    get(ref(host.db, `rooms/${roomId}/game/matches/m000001/meta`)),
+    get(ref(guest.db, `rooms/${roomId}/game/matches/m000001/meta`))
   ]);
   if (hostView.val()?.matchId !== matchId || guestView.val()?.matchId !== matchId) {
     throw new Error('Participants did not receive the same match');
@@ -71,9 +77,12 @@ try {
 
   await set(ref(host.db, `rooms/${roomId}`), null);
   roomCreated = false;
+  await set(ref(host.db, `userRooms/${hostUid}/slot1`), null);
+  reservationCreated = false;
   console.log(JSON.stringify({ ok: true, anonymousAuth: true, guestClaim: true, outsiderDenied: true, hostCleanup: true }));
 } finally {
   if (roomCreated) await set(ref(clients[0].db, `rooms/${roomId}`), null).catch(() => {});
+  if (reservationCreated) await set(ref(clients[0].db, `userRooms/${clients[0].auth.currentUser?.uid}/slot1`), null).catch(() => {});
   await Promise.allSettled(clients.map(client => deleteApp(client.app)));
 }
 

@@ -44,6 +44,7 @@ export class LocalAiSession {
     this.closed = false;
     this.busy = false;
     this.history = { traps: [[], []], sits: [[], []] };
+    this.transcript = [];
     this.state = {
       roomId: null,
       code: this.difficulty.toUpperCase(),
@@ -129,6 +130,7 @@ export class LocalAiSession {
       pointsAfter: sitter.score,
       gained: shocked ? 0 : seat
     };
+    this.transcript.push({ turnNumber: this.state.turnNumber, setterIndex: this.state.setterIndex, choice: seat, trap: this.trapSeat, result: { ...this.state.lastResult } });
     this.trapSeat = null;
     this.state.phase = 'result';
     this.busy = false;
@@ -168,6 +170,12 @@ export class LocalAiSession {
     this.state.endReason = reason;
     this.state.lastResult = null;
     if (winnerIndex != null) this.state.players[winnerIndex].wins += 1;
+    this.state.analysis = this.buildAnalysis();
+    this.state.replay = {
+      version: 'ecd-local-v1', mode: 'ai', gameNumber: this.state.gameNumber,
+      players: this.state.players.map(player => player.name), ai: { ...this.state.ai },
+      turns: structuredClone(this.transcript), winnerIndex, endReason: reason
+    };
     this.emit();
   }
 
@@ -183,8 +191,24 @@ export class LocalAiSession {
     this.state.winnerIndex = null;
     this.state.endReason = null;
     this.history = { traps: [[], []], sits: [[], []] };
+    this.transcript = [];
+    this.state.analysis = null;
+    this.state.replay = null;
     this.emit();
     this.scheduleAi();
+  }
+
+  buildAnalysis() {
+    const seats = this.history.sits[0];
+    const traps = this.history.traps[0];
+    const favorite = items => items.length ? [...new Set(items)].sort((a, b) => frequency(items, b) - frequency(items, a))[0] : null;
+    const average = seats.length ? (seats.reduce((sum, seat) => sum + seat, 0) / seats.length).toFixed(1) : '—';
+    const repeats = seats.slice(1).filter((seat, index) => seat === seats[index]).length;
+    return {
+      title: `${this.profile.name}の対戦分析`,
+      summary: `選択平均 ${average}番 / よく座ったイス ${favorite(seats) ?? '—'}番 / よく仕掛けたイス ${favorite(traps) ?? '—'}番 / 連続同手 ${repeats}回`,
+      tip: Number(average) >= 8 ? '高得点側へ寄る傾向があります。次戦は中間のイスも混ぜると読まれにくくなります。' : '慎重な選択が多めです。勝ち切れる局面では高得点も候補に入れましょう。'
+    };
   }
 
   humanSeatTendency(seat) {

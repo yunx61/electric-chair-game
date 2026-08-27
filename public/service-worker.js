@@ -1,4 +1,4 @@
-const CACHE_NAME = 'electric-chair-duel-v4.0.1';
+const CACHE_NAME = 'electric-chair-duel-v4.1.0';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -13,6 +13,7 @@ const APP_SHELL = [
   '/js/game/rules.js',
   '/js/storage/local-secrets.js',
   '/js/vendor/firebase.js',
+  '/js/vendor/qr.js',
   '/manifest.webmanifest',
   '/icon.svg',
   '/assets/ai-rei.webp',
@@ -23,7 +24,10 @@ const APP_SHELL = [
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

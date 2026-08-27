@@ -12,14 +12,15 @@ const guestUid = 'guest_uid';
 function roomWith(turns = {}) {
   return {
     meta: {
+      protocolVersion: 'ecd-v2',
       host: { uid: hostUid, name: 'HOST' },
       guest: { uid: guestUid, name: 'GUEST' }
     },
     presence: {
-      [hostUid]: { state: 'online' },
-      [guestUid]: { state: 'online' }
+      [hostUid]: { connections: { tab1: { at: 1 } }, lastChanged: 1 },
+      [guestUid]: { connections: { tab2: { at: 1 } }, lastChanged: 1 }
     },
-    game: { meta: { matchId }, turns }
+    game: { currentKey: 'm000001', matches: { m000001: { meta: { matchId, gameNumber: 1 }, turns } } }
   };
 }
 
@@ -110,19 +111,74 @@ test('pending reveal data survives a browser session restart and rejects corrupt
     const secret = { roomId, matchId, turnNumber: 1, seat: 12, nonce: 'a'.repeat(32), commitHash: 'b'.repeat(64) };
     savePendingSecret(secret);
     globalThis.sessionStorage.clear();
-    const restored = loadPendingSecret(roomId, matchId, 1);
+    const restored = loadPendingSecret(roomId, matchId, 1, secret.commitHash);
     assert.deepEqual({ ...restored, expiresAt: undefined }, { ...secret, expiresAt: undefined });
     assert.ok(restored.expiresAt > Date.now());
-    removePendingSecret(roomId, matchId, 1);
-    assert.equal(loadPendingSecret(roomId, matchId, 1), null);
+    removePendingSecret(roomId, matchId, 1, secret.commitHash);
+    assert.equal(loadPendingSecret(roomId, matchId, 1, secret.commitHash), null);
 
     const key = `ecd_pending_secret:${roomId}:${matchId}:1`;
     globalThis.localStorage.setItem(key, JSON.stringify({ ...secret, seat: 99, expiresAt: Date.now() + 10000 }));
-    assert.equal(loadPendingSecret(roomId, matchId, 1), null);
+    assert.equal(loadPendingSecret(roomId, matchId, 1, secret.commitHash), null);
   } finally {
     if (previousLocal === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = previousLocal;
     if (previousSession === undefined) delete globalThis.sessionStorage;
     else globalThis.sessionStorage = previousSession;
   }
+});
+
+test('secrets from two tabs remain isolated by commit hash', () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) };
+  const previousLocal = globalThis.localStorage;
+  const previousSession = globalThis.sessionStorage;
+  globalThis.localStorage = storage;
+  globalThis.sessionStorage = storage;
+  try {
+    const first = { roomId, matchId, turnNumber: 1, seat: 3, nonce: 'a'.repeat(32), commitHash: '1'.repeat(64) };
+    const second = { roomId, matchId, turnNumber: 1, seat: 9, nonce: 'b'.repeat(32), commitHash: '2'.repeat(64) };
+    savePendingSecret(first); savePendingSecret(second);
+    removePendingSecret(roomId, matchId, 1, first.commitHash);
+    assert.equal(loadPendingSecret(roomId, matchId, 1, first.commitHash), null);
+    assert.equal(loadPendingSecret(roomId, matchId, 1, second.commitHash)?.seat, 9);
+  } finally {
+    if (previousLocal === undefined) delete globalThis.localStorage; else globalThis.localStorage = previousLocal;
+    if (previousSession === undefined) delete globalThis.sessionStorage; else globalThis.sessionStorage = previousSession;
+  }
+});
+
+test('presence aggregates tabs and disconnect timeout becomes claimable', async () => {
+  const room = roomWith();
+  room.presence[guestUid] = { connections: {}, lastChanged: 1000 };
+  const waiting = await replayOnlineGame({ roomId, room, uid: hostUid, now: 120000 });
+  assert.equal(waiting.players[1].connected, false);
+  assert.equal(waiting.disconnectClaimable, false);
+  const claimable = await replayOnlineGame({ roomId, room, uid: hostUid, now: 121000 });
+  assert.equal(claimable.disconnectClaimable, true);
+});
+
+test('leave event immediately awards the match to the opponent', async () => {
+  const room = roomWith();
+  room.game.leaves = { m000001: { [guestUid]: { uid: guestUid, at: 2000 } } };
+  const state = await replayOnlineGame({ roomId, room, uid: hostUid, now: 3000 });
+  assert.equal(state.phase, 'game_over');
+  assert.equal(state.winnerIndex, 0);
+  assert.equal(state.endReason, 'opponent_left');
+});
+
+test('a leave written after the verified winning move cannot rewrite the winner', async () => {
+  const turns = {};
+  const choices = [12, 11, 10, 9, 8, 7, 6, 5, 4];
+  for (let turnNumber = 1; turnNumber <= choices.length; turnNumber += 1) {
+    const setterUid = turnNumber % 2 ? hostUid : guestUid;
+    const sitterUid = turnNumber % 2 ? guestUid : hostUid;
+    const prefix = turnNumber % 2 ? 'h' : 'g';
+    turns[`${prefix}${String(turnNumber).padStart(6, '0')}`] = await resolvedTurn({ turnNumber, setterUid, sitterUid, trapSeat: 1, choiceSeat: choices[turnNumber - 1], at: turnNumber * 1000 });
+  }
+  const room = roomWith(turns);
+  room.game.leaves = { m000001: { [guestUid]: { uid: guestUid, at: 11000 } } };
+  const state = await replayOnlineGame({ roomId, room, uid: hostUid, now: 20000 });
+  assert.equal(state.endReason, 'target_score');
+  assert.equal(state.winnerIndex, 1);
 });

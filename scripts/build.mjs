@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url))).replaceAll('\\', '/');
 
-await build({
+await Promise.all([build({
   absWorkingDir: root,
   entryPoints: ['src/firebase-entry.js'],
   bundle: true,
@@ -13,4 +13,13 @@ await build({
   target: 'es2022',
   minify: true,
   outfile: 'public/js/vendor/firebase.js'
-});
+}), build({
+  absWorkingDir: root,
+  entryPoints: ['src/qr-entry.js'],
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  minify: true,
+  outfile: 'public/js/vendor/qr.js'
+})]);

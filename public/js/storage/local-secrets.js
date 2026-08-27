@@ -1,22 +1,32 @@
 const PREFIX = 'ecd_pending_secret:';
 const SECRET_TTL_MS = 10 * 60 * 1000;
 
-function keyFor(roomId, matchId, turnNumber) {
+function legacyKeyFor(roomId, matchId, turnNumber) {
   return `${PREFIX}${roomId}:${matchId}:${turnNumber}`;
+}
+
+function keyFor(roomId, matchId, turnNumber, commitHash) {
+  return `${legacyKeyFor(roomId, matchId, turnNumber)}:${commitHash}`;
 }
 
 export function savePendingSecret(secret) {
   const value = { ...secret, expiresAt: Date.now() + SECRET_TTL_MS };
-  localStorage.setItem(keyFor(secret.roomId, secret.matchId, secret.turnNumber), JSON.stringify(value));
+  localStorage.setItem(keyFor(secret.roomId, secret.matchId, secret.turnNumber, secret.commitHash), JSON.stringify(value));
 }
 
-export function loadPendingSecret(roomId, matchId, turnNumber) {
+export function loadPendingSecret(roomId, matchId, turnNumber, commitHash) {
   try {
-    const key = keyFor(roomId, matchId, turnNumber);
+    const key = keyFor(roomId, matchId, turnNumber, commitHash);
     let raw = localStorage.getItem(key);
     if (!raw) {
       raw = sessionStorage.getItem(key);
       if (raw) sessionStorage.removeItem(key);
+    }
+    if (!raw) {
+      const legacyKey = legacyKeyFor(roomId, matchId, turnNumber);
+      raw = localStorage.getItem(legacyKey) || sessionStorage.getItem(legacyKey);
+      try { localStorage.removeItem(legacyKey); } catch {}
+      try { sessionStorage.removeItem(legacyKey); } catch {}
     }
     const value = JSON.parse(raw || 'null');
     const valid = value
@@ -29,6 +39,8 @@ export function loadPendingSecret(roomId, matchId, turnNumber) {
       && value.seat <= 12
       && typeof value.nonce === 'string'
       && /^[a-f0-9]{32,128}$/.test(value.nonce)
+      && value.commitHash === commitHash
+      && /^[a-f0-9]{64}$/.test(String(commitHash || ''))
       && (!value.expiresAt || (Number.isFinite(value.expiresAt) && value.expiresAt > Date.now()));
     if (!valid) {
       localStorage.removeItem(key);
@@ -42,8 +54,8 @@ export function loadPendingSecret(roomId, matchId, turnNumber) {
   }
 }
 
-export function removePendingSecret(roomId, matchId, turnNumber) {
-  const key = keyFor(roomId, matchId, turnNumber);
+export function removePendingSecret(roomId, matchId, turnNumber, commitHash) {
+  const key = keyFor(roomId, matchId, turnNumber, commitHash);
   try { localStorage.removeItem(key); } catch {}
   try { sessionStorage.removeItem(key); } catch {}
 }

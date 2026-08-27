@@ -4,12 +4,12 @@ import test from 'node:test';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('v4 is a static Firebase app with zoomable mobile UI', async () => {
+test('v4.1 is a static Firebase app with zoomable mobile UI', async () => {
   const [html, pkg] = await Promise.all([read('public/index.html'), read('package.json')]);
   assert.match(html, /<script type="module" src="\/app\.js"><\/script>/);
   assert.doesNotMatch(html, /user-scalable\s*=\s*no/i);
   assert.match(html, /maxlength="22"/);
-  assert.equal(JSON.parse(pkg).version, '4.0.1');
+  assert.equal(JSON.parse(pkg).version, '4.1.0');
   assert.doesNotMatch(pkg, /"ws"/);
 });
 
@@ -23,16 +23,22 @@ test('Firebase rules default-deny and protect immutable events', async () => {
   assert.match(rules, /90000 > now/);
   assert.match(rules, /86400000/);
   assert.match(rules, /h0000\(01\|03\|05/);
+  assert.match(rules, /disconnect_timeout/);
+  assert.match(rules, /120000/);
+  assert.match(rules, /slot\(1\|2\|3\)/);
 });
 
 test('PWA and Firebase Hosting security headers are configured', async () => {
-  const [manifest, sw, firebase] = await Promise.all([
+  const [manifest, sw, firebase, app] = await Promise.all([
     read('public/manifest.webmanifest'),
     read('public/service-worker.js'),
-    read('firebase.json')
+    read('firebase.json'),
+    read('public/app.js')
   ]);
   assert.equal(JSON.parse(manifest).display, 'standalone');
   assert.match(sw, /CACHE_NAME/);
+  assert.match(sw, /SKIP_WAITING/);
+  assert.match(app, /hadController/);
   assert.match(firebase, /Content-Security-Policy/);
   assert.match(firebase, /Referrer-Policy/);
 });

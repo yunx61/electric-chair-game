@@ -10,4 +10,4 @@ export {
   serverTimestamp,
   set
 } from 'firebase/database';
-export { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+export { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } from 'firebase/app-check';

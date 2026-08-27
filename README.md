@@ -1,8 +1,8 @@
-# 電撃イスDUEL v4.0.1
+# 電撃イスDUEL v4.1.0
 
 12脚のイスを使った、スマートフォン向けターン制心理戦ゲームです。ONLINE対戦は Firebase Hosting / Anonymous Authentication / Realtime Database、AI・Challengeはブラウザ内だけで動作します。
 
-## v4.0の設計
+## v4.1の設計
 
 - 常駐Node.jsサーバーと独自WebSocketを廃止
 - 罠番号をChoice前に送らないCommit-Reveal方式
@@ -15,6 +15,11 @@
 - Commit不一致など、サーバーだけで裁定できない不整合は「反則勝ち」ではなく「対戦無効」
 - AI、Challenge、実績、履歴はローカル動作
 - PWA、Safe Area、44px以上の主要タップ領域、画面ズーム対応
+- タブごとのPresenceと再接続時の自動再登録。相手切断後は120秒の復帰猶予
+- Commit秘密をhash別に保存し、Web Locksで同一ターンの複数タブ操作を調停
+- 同一ルームで最大10試合の再戦、QR招待、検証ログ共有、AI傾向分析
+- 1ユーザー最大3ルームの固定スロット制限
+- reCAPTCHA Enterprise版App Checkを監視モードで導入
 
 ## セキュリティ境界
 
@@ -38,7 +43,9 @@ public/
     game/rules.js
     storage/local-secrets.js
     vendor/firebase.js
+    vendor/qr.js
 src/firebase-entry.js
+src/qr-entry.js
 database.rules.json
 firebase.json
 test/
@@ -75,6 +82,8 @@ pnpm test:rules
 - 不正prefix、16ターン目以降、未確定の未来ターンの拒否
 - 対戦開始前のルーム解放と24時間経過ルームの削除
 - ブラウザ再起動後のRevealデータ復元
+- 複数タブの秘密分離、Presence集約、退出・切断裁定
+- 2クライアントによる1ターン同期と同一ルーム再戦
 - PWA、CSP、スマホ向け静的要件
 
 ## Firebase公開
@@ -111,7 +120,7 @@ Web用App Checkを有効にする場合は、アプリの起動前に次の公�
 globalThis.__APP_CHECK_SITE_KEY__ = 'YOUR_RECAPTCHA_SITE_KEY';
 ```
 
-現在の配布物はキー未設定でも動作します。Firebase側でenforcementだけを先に有効化しないでください。
+本番はreCAPTCHA Enterpriseを登録済みです。Realtime Databaseはまず監視モードで運用し、有効トークン比率を確認してからenforcementを有効化してください。
 
 ## 運用上の制約
 
@@ -119,10 +128,10 @@ globalThis.__APP_CHECK_SITE_KEY__ = 'YOUR_RECAPTCHA_SITE_KEY';
 - Firebase障害・無料枠超過中はONLINE対戦不可
 - Anonymous Authのブラウザデータを失うと同じ参加者として復帰できない
 - Commit後にサイトデータを消去するとRevealできず、90秒後にタイムアウト終了（通常のブラウザ再起動では復元）
-- 意図的切断と通信事故は区別できない
-- ONLINE再戦は、新しい招待ルームを作成して行う
+- 意図的切断と通信事故は区別できないため、切断勝ちは120秒後に確定
+- ONLINE再戦は同じルームで10試合まで
 - 誰も再訪しない古いルームは管理者がcleanupコマンドで定期削除する
 
 ## バージョン
 
-`4.0.1` — Reveal期限競合、未来ターン、二重送信、guest占有、ルーム期限、スマホ再開時の復元を修正。
+`4.1.0` — 複数タブ・再接続・退出裁定を強化し、同室再戦、QR招待、検証ログ、PWA更新通知、AI分析、App Check監視を追加。
